@@ -394,5 +394,11 @@ prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) 
 # prki1
 # prki2
 # prki3
+
 ###################### ToDo
 # https://stats.idre.ucla.edu/r/faq/how-can-i-explore-different-smooths-in-ggplot2/
+
+###################### github:
+# https://happygitwithr.com/existing-github-first.html
+
+  

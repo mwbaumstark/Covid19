@@ -16,7 +16,7 @@ mk_plot1 <- function(tss, col, titel, normalize, ylog, inh) {
     theme(legend.position = "none")
   if (ylog) {
     p1 <- p1 + scale_y_log10() +
-      geom_smooth(method="lm")
+      geom_smooth(aes(group = paste(vc, Country_Region)), method="lm")
   }
   return(p1)
 }
@@ -30,7 +30,7 @@ mk_plot2 <- function(tss, col, titel, fit) {
     ggtitle(paste(titel , max(tss$Date), ")", sep = ""))+
     theme(legend.position = "none")
   if (fit == "linear") {
-    p1 <-p1 + geom_smooth(method = "lm", formula = (y ~ 1))
+    p1 <-p1 + geom_smooth(aes(group = paste(vc, Country_Region)), method = "lm", formula = (y ~ 1))
   } else if (fit == "loess")  {
     p1 <-p1 + geom_smooth(method = "loess")
   }
@@ -48,33 +48,43 @@ mk_plot3 <- function(tss, col, titel, normalize, inh) {
     ggtitle(paste(titel, max(tss$Date), ")", sep = ""))
   return(p1)
 }
-
-function(input, output, session) {
+##############################################################################
+shinyServer(function(input, output, session) {
+  
+  defl <- reactiveValues(x = NULL, y = NULL)
   
   observe({
+    
     
     inh <- g_inh
     
     if (input$repo == "Johns Hopkins") {
       td <- tm
-      updateRadioButtons(session, "type", choices = ctype, selected = input$type)
+      # updateRadioButtons(session, "type", choices = ctype, selected = input$type)
     } else if (input$repo == "ECDC") {
       td <- ecdc
-      updateRadioButtons(session, "type", choices = ctype[c(1,2)], selected = input$type) 
+      # updateRadioButtons(session, "type", choices = ctype[c(1,2)], selected = input$type) 
     } else if (input$repo == "RKI (Germany)") {
       td <- rkig
-      updateRadioButtons(session, "type", choices = ctype[c(1,2)], selected = input$type)  
+      # updateRadioButtons(session, "type", choices = ctype[c(1,2)], selected = input$type)  
     } else if (input$repo == "RKI (Bundesländer)") {
       td <- rkia
       inh <- rki_inh
-      updateRadioButtons(session, "type", choices = ctype[c(1,2)], selected = input$type)
+      # updateRadioButtons(session, "type", choices = ctype[c(1,2)], selected = input$type)
       if (input$show_c[1] %in% rki_countries) select <- input$show_c
       else select <- "Baden-Württemberg"
-      updateSelectizeInput(session,"show_c", "Bundesländer:", choices = rki_countries, 
-                           selected = select)
+      # updateSelectizeInput(session,"show_c", "Bundesländer:", choices = rki_countries, 
+      # selected = select)
     } else {
       td <- ts
-      updateRadioButtons(session, "type", choices = ctype, selected = input$type)
+      # updateRadioButtons(session, "type", choices = ctype, selected = input$type)
+    }
+
+    td$vc <- 1
+    if (is.numeric(defl$x)) {
+      if (as_date(defl$x) < max(td$Date)) {
+        td$vc[td$Date >= as_date(defl$x)] <- 2
+      }
     }
     
     tsss <- subset(td, (td$Country_Region %in% input$show_c) )
@@ -84,7 +94,6 @@ function(input, output, session) {
     
     tss <- subset(tsss, Date >= "2020-03-01")
     tss2 <- subset(tsss, Date >= "2020-03-15")
-    
     
     if (input$tabs == "wwd1") {
       show("normalize")
@@ -238,6 +247,45 @@ function(input, output, session) {
     output$AvTodesFaelle <- renderPlot({prki1})
     output$AvFaelle <- renderPlot({prki2})
     output$CFR <- renderPlot({prki3})
-  }) 
+    
+  }) # End observe
+  observeEvent(input$plot_click, {
+    clickx <- input$plot_click$x
+    if (!is.null(clickx)) {
+      defl$x <- clickx
+    } else {
+      defl$x <- NULL
+    }
+  })
+  
+  output$info1 <- renderText({
+    if (is.numeric(defl$x)) {
+      paste0("Date = ", as_date(defl$x), "To remove select max. date")
+    } else {
+      "Click to select deflection point"
+    }
+  })
+  output$info2 <- renderText({
+    if (is.numeric(defl$x)) {
+      paste0("Date = ", as_date(defl$x))
+    } else {
+      "Click to select deflection point"
+    }
+  })
+  output$info3 <- renderText({
+    if (is.numeric(defl$x)) {
+      paste0("Date = ", as_date(defl$x))
+    } else {
+      "Click to select deflection point"
+    }
+  })
+  output$info4 <- renderText({
+    if (is.numeric(defl$x)) {
+      paste0("Date = ", as_date(defl$x))
+    } else {
+      "Click to select date to split fit"
+    }
+  })
   
 }
+)

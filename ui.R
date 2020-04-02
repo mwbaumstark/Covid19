@@ -55,14 +55,16 @@ dashboardPage(
     tabItems(
       tabItem(tabName = "wwd1",
               fluidRow(
-                box(width = 4, plotOutput('Plot1')),
+                box(width = 4, plotOutput('Plot1', click = "plot_click"), 
+                    verbatimTextOutput("info1")),
                 box(width = 4, plotOutput('Plot2')),
                 box(width = 4, plotOutput('Plot3'))
               )
       ),
       tabItem(tabName = "wwd2",
               fluidRow(
-                box(width = 4, plotOutput('Plot4')),
+                box(width = 4, plotOutput('Plot4', click = "plot_click"), 
+                    verbatimTextOutput("info2")),
                 box(width = 4, plotOutput('Plot5')),
                 box(width = 4, plotOutput('Plot6'))
               )
@@ -70,14 +72,16 @@ dashboardPage(
       ),
       tabItem(tabName = "wwd3",
               fluidRow(
-                box(width = 4, plotOutput('Plot7')),
+                box(width = 4, plotOutput('Plot7', click = "plot_click"), 
+                    verbatimTextOutput("info3")),
                 box(width = 4, plotOutput('Plot8')),
                 box(width = 4, plotOutput('Plot9'))
               )      
       ),
       tabItem(tabName = "wwd4",
               fluidRow(
-                box(width = 4, plotOutput('Plot10')),
+                box(width = 4, plotOutput('Plot10', click = "plot_click"), 
+                    verbatimTextOutput("info4")),
                 box(width = 4, plotOutput('Plot11')),
                 box(width = 4, plotOutput('Plot12'))
               )

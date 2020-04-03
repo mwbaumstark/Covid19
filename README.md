@@ -1,4 +1,4 @@
-# Covid19 Dashboard by Manfred W. Baumstark
+# Covid19 Dashboard by Manfred W. Baumstark 
 
 #The shinyapp needs the following packages:
 

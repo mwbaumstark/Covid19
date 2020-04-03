@@ -10,7 +10,7 @@ library(htmltab)
 library(ggplot2)
 
 
-#compare sensible with NAs
+#compare with NAs
 compareNA <- function(v1,v2) {
   same <- (v1 == v2) | (is.na(v1) & is.na(v2))
   same[is.na(same)] <- FALSE
@@ -23,25 +23,7 @@ compareLE <- function(v1,v2) {
   return(same)
 }
 
-
-# Einwohnerzahlen
-url = "https://www.worldometers.info/world-population/population-by-country/"
-
-ukLang <- htmltab(doc = url, which = "//th[text() = '#']/ancestor::table")
-
-population <- subset(ukLang, select = c(2,3))
-names(population) <- c("Country_Region", "Population")
-
-x <- gsub(",", "", population$Population, fixed = TRUE)
-population$Population <- as.integer(x) / 1000000
-
-#rename countries
-population$Country_Region[population$Country_Region == "South Korea"] <- "Korea, South"
-population$Country_Region[population$Country_Region == "United States"] <- "US"
-population$Country_Region[population$Country_Region == "Czech Republic (Czechia)"] <- "Czechia"
-
-
-# John Hopkins Master Repository #############################
+# Johns Hopkins Master Repository #############################
 confirmed_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
 confirmed <- read_csv(confirmed_data)
 
@@ -52,7 +34,7 @@ cm <- subset(cm, select = c("Country_Region", "Date", "Confirmed") )
 cm <- aggregate(Confirmed ~ Country_Region + Date, cm, sum)
 cm$Date <-  mdy(cm$Date)
 
- 
+
 deaths_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
 deaths <- read_csv(deaths_data)
 
@@ -62,6 +44,7 @@ names(dm)[2] <- "Country_Region"
 dm <- subset(dm, select = c("Country_Region", "Date", "Deaths") )
 dm <- aggregate(Deaths ~ Country_Region + Date, dm, sum)
 dm$Date <-  mdy(dm$Date)
+
 
 recovered_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv"
 recovered <- read_csv(recovered_data)
@@ -86,7 +69,6 @@ tm$Delta_Confirmed <- 0
 tm$Delta_Confirmed[2:length(tm$Delta_Confirmed)] <- diff(tm$Confirmed, 1)
 tm$Delta_Confirmed[! tm$cmatch] <- tm$Confirmed[! tm$cmatch]
 
- 
 tm$Delta_Recovered <- 0
 tm$Delta_Recovered[2:length(tm$Delta_Recovered)] <- diff(tm$Recovered, 1)
 tm$Delta_Recovered[! tm$cmatch] <- tm$Recovered[! tm$cmatch]
@@ -108,62 +90,62 @@ tm$Rate_Active[compareLE(tm$Rate_Active, 0)] <- NA
 tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
 tm$Rate_Deaths[compareLE(tm$Rate_Deaths, 0)] <- NA
 
-# Web repository ######################################
-ts_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/web-data/data/cases_time.csv"
-ts <- read_csv(ts_data)
-names(ts)[2] <- "Date"
-ts$Date <-  mdy(ts$Date)
 
-ts$cmatch <- NA
-ts$cmatch[1] <- FALSE
-ts$cmatch[(2):length(ts$Date)] <- ts$Country_Region[(2):length(ts$Date)] ==
-  ts$Country_Region[1:(length(ts$Date) - 1)]
+# # Johns Hopkins Web repository ######################################
+# ts_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/web-data/data/cases_time.csv"
+# ts <- read_csv(ts_data)
+# names(ts)[2] <- "Date"
+# ts$Date <-  mdy(ts$Date)
+# 
+# ts$cmatch <- NA
+# ts$cmatch[1] <- FALSE
+# ts$cmatch[(2):length(ts$Date)] <- ts$Country_Region[(2):length(ts$Date)] ==
+#   ts$Country_Region[1:(length(ts$Date) - 1)]
+# 
+# ts$Delta_Active <- 0
+# ts$Delta_Active[2:length(ts$Delta_Active)] <- diff(ts$Active, 1)
+# ts$Delta_Active[! ts$cmatch] <- ts$Active[! ts$cmatch]
+# 
+# ts$Delta_Deaths <- 0
+# ts$Delta_Deaths[2:length(ts$Delta_Deaths)] <- diff(ts$Deaths, 1)
+# ts$Delta_Deaths[! ts$cmatch] <- ts$Deaths[! ts$cmatch]
+# 
+# ts$Rate_Confirmed <- (ts$Delta_Confirmed / ts$Confirmed) * 100
+# ts$Rate_Confirmed[compareLE(ts$Rate_Confirmed, 0)] <- NA
+# ts$Rate_Recovered <- (ts$Delta_Recovered / ts$Recovered) * 100
+# ts$Rate_Recovered[compareLE(ts$Rate_Recovered, 0)] <- NA
+# ts$Rate_Active <- (ts$Delta_Active / ts$Active) * 100
+# ts$Rate_Active[compareLE(ts$Rate_Active, 0)] <- NA
+# ts$Rate_Deaths <- (ts$Delta_Deaths / ts$Deaths) * 100
+# ts$Rate_Deaths[compareLE(ts$Rate_Deaths, 0)] <- NA
 
 
-ts$Delta_Active <- 0
-ts$Delta_Active[2:length(ts$Delta_Active)] <- diff(ts$Active, 1)
-ts$Delta_Active[! ts$cmatch] <- ts$Active[! ts$cmatch]
-
-ts$Delta_Deaths <- 0
-ts$Delta_Deaths[2:length(ts$Delta_Deaths)] <- diff(ts$Deaths, 1)
-ts$Delta_Deaths[! ts$cmatch] <- ts$Deaths[! ts$cmatch]
-
-ts$Rate_Confirmed <- (ts$Delta_Confirmed / ts$Confirmed) * 100
-ts$Rate_Confirmed[compareLE(ts$Rate_Confirmed, 0)] <- NA
-ts$Rate_Recovered <- (ts$Delta_Recovered / ts$Recovered) * 100
-ts$Rate_Recovered[compareLE(ts$Rate_Recovered, 0)] <- NA
-ts$Rate_Active <- (ts$Delta_Active / ts$Active) * 100
-ts$Rate_Active[compareLE(ts$Rate_Active, 0)] <- NA
-ts$Rate_Deaths <- (ts$Delta_Deaths / ts$Deaths) * 100
-ts$Rate_Deaths[compareLE(ts$Rate_Deaths, 0)] <- NA
-
-### ECDC repository #########################
-
-#Vortag
-url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date()-1, "%Y-%m-%d"), ".xlsx", sep = "")
-GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf1 <- tempfile(fileext = ".xlsx")))
-
-#tf1
-
-#Tag geht erst wenn da
+# ECDC repository #########################
 url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date(), "%Y-%m-%d"), ".xlsx", sep = "")
+
+#current day not always present
 try(
   status <-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
 )
-if (status$status_code != 200) tf <- tf1
+if (status$status_code != 200) {
+  #get day before today 
+  url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date()-1, "%Y-%m-%d"), ".xlsx", sep = "")
+  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
+}
 
-#read the Dataset sheet into “R”
+#read the Dataset sheet 
 ecdc_raw <- read_excel(tf)
+
+#rename countries to match Johns Hopkins
+ecdc_raw$countriesAndTerritories <- gsub("_", " ", ecdc_raw$countriesAndTerritories, fixed = TRUE)
+ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "South Korea"] <- "Korea, South"
+ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "United States of America"] <- "US"
+ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "Czech Republic"] <- "Czechia"
+
 ecdc <- subset(ecdc_raw, select = c("dateRep", "cases", "deaths", "countriesAndTerritories"))
 names(ecdc) <- c("Date", "Delta_Confirmed", "Delta_Deaths", "Country_Region")
 
 ecdc <- ecdc[order(ecdc$Country_Region, ecdc$Date),]
-
-#rename countries
-ecdc$Country_Region <- gsub("_", " ", ecdc$Country_Region, fixed = TRUE)
-ecdc$Country_Region[ecdc$Country_Region == "South Korea"] <- "Korea, South"
-ecdc$Country_Region[ecdc$Country_Region == "United States of America"] <- "US"
-ecdc$Country_Region[ecdc$Country_Region == "Czech Republic"] <- "Czechia"
 
 ecdc$Confirmed <- 0
 ecdc$Confirmed[1] <- ecdc$Delta_Confirmed[1]
@@ -197,37 +179,12 @@ ecdc$Rate_Confirmed[compareLE(ecdc$Rate_Confirmed, 0)] <- NA
 ecdc$Rate_Deaths <- (ecdc$Delta_Deaths / ecdc$Deaths) * 100
 ecdc$Rate_Deaths[compareLE(ecdc$Rate_Deaths, 0)] <- NA
 
-# RKI Daten
-
+# RKI Data
+# warning("vor RKI Daten") #DEBUG
 rki_data <- "https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.csv"
 rki_full <- read_delim(rki_data, ",")
 
 rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
-
-#str(rki_full)
-
-# rkid <- subset(rki_full, rki$AnzahlTodesfall > 0)
-# 
-# addmargins(table(rkid$Altersgruppe, rkid$AnzahlTodesfall))
-
-# 1   2   3 Sum
-# A15-A34     3   0   0   3
-# A35-A59    16   0   0  16
-# A60-A79    92   0   1  95
-# A80+      183  12   1 210
-# unbekannt   1   0   0   1
-# Sum       295  12   2 325
-
-# sum(rkid$AnzahlTodesfall)
-# [1] 325
-# > sum(rkic$AnzahlFall)
-# [1] 48582
-# ist korrekt, Neu ist neue Meldung bezogen auf Vortag
-
-# names(rki_full)
-# [1] "IdBundesland"    "Bundesland"      "Landkreis"       "Altersgruppe"    "Geschlecht"      "AnzahlFall"     
-# [7] "AnzahlTodesfall" "ObjectId"        "Meldedatum"      "IdLandkreis"     "Datenstand"      "NeuerFall"      
-# [13] "NeuerTodesfall" 
 
 rki_Datenstand <- max(rki_full$Datenstand)
 
@@ -243,7 +200,6 @@ rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths) ~ Date + Country_Region, 
 
 rkia$Confirmed <- 0
 rkia$Confirmed[1] <- rkia$Delta_Confirmed[1]
-
 for (i in 2:length(rkia$Confirmed)) {
   rkia$Confirmed[i] = rkia$Confirmed[i-1] + rkia$Delta_Confirmed[i]
   if (rkia$Country_Region[i] != rkia$Country_Region[i-1]){
@@ -308,34 +264,47 @@ rkig$Rate_Confirmed[compareLE(rkig$Rate_Confirmed, 0)] <- NA
 rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
 rkig$Rate_Deaths[compareLE(rkig$Rate_Deaths, 0)] <- NA
 
+max_date <- max(max(ecdc$Date), max(rkig$Date))
+max_date <- max(max_date, max(tm$Date)) 
+min_date <- min(min(tm$Date), min(ecdc$Date), min(rkig$Date))
+
 ######################################################################
 ctype <- c("Confirmed Cases" , 
            "Deaths", 
            "Recovered Cases",
-           "Active Cases",
-           "Deaths / Confirmed Case"
-           )
+           "Active Cases" # ,
+           # "Deaths / Confirmed Case"
+)
 
 # Wichtige Länder (cases > 1000) und deren Einwohnerzahlen
-tsc <- as.data.frame(unique(subset(ts, Confirmed > 1000)$Country_Region) )
-names(tsc)[1] <- "Country_Region"
+# tsc <- as.data.frame(unique(subset(ts, Confirmed > 1000)$Country_Region) )
+# names(tsc)[1] <- "Country_Region"
 
 tmc <- as.data.frame(unique(subset(tm, Confirmed > 1000)$Country_Region) )
 names(tmc)[1] <- "Country_Region"
 
-ctr1 <- merge(tmc, tsc, by = "Country_Region", all = TRUE)
+# ctr1 <- merge(tmc, tsc, by = "Country_Region", all = TRUE)
 
 ecdcc <- as.data.frame(unique(subset(ecdc, Confirmed > 1000)$Country_Region) )
 names(ecdcc)[1] <- "Country_Region"
+
+population <- aggregate(popData2018 ~ countriesAndTerritories, 
+                        subset(ecdc_raw, !is.na(popData2018)), mean )
+# check_sd <- aggregate(popData2018 ~ countriesAndTerritories, #DEBUG
+#                       subset(ecdc_raw, !is.na(popData2018)), sd) #DEBUG
+
+names(population) <- c("Country_Region", "Population")
+
+population$Population <- population$Population / 1000000
 
 pc <- as.data.frame(unique(population$Country_Region) )
 names(pc)[1] <- "Country_Region"
 
 ctr2 <- merge(ecdcc, population, by = "Country_Region", all.x = TRUE)
 
-cp <- merge(ctr1, ctr2, by = "Country_Region", all = TRUE)
+cp <- merge(tmc, ctr2, by = "Country_Region", all = TRUE)
 
-print(cp$Country_Region[is.na(cp$Population)])
+# print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
 
 cp <- subset(cp, ! is.na(cp$Population))
 
@@ -343,6 +312,7 @@ countries <- as.character(cp$Country_Region)
 g_inh <- array(0, dim = length(countries), dimnames = list(countries))
 g_inh[countries] <- cp$Population
 
+##########
 rki_countries <- as.character(unique(rkia$Country_Region))
 rki_inh <- array(0, dim = length(rki_countries), dimnames = list(rki_countries))
 rki_inh["Baden-Württemberg"] <- 11.07 
@@ -363,37 +333,8 @@ rki_inh["Schleswig-Holstein"] <- 2.14
 rki_inh["Thüringen"] <- 2.14
 rki_inh["Germany"] <- 82.79
 
-############## Test ###############################
+closeAllConnections()
 
-rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed) ~ Geschlecht + Altersgruppe, rki, sum)
-rkigg$Geschlecht[rkigg$Geschlecht == "W"] <- "F"
-rkigg$Geschlecht[rkigg$Geschlecht == "unbekannt"] <- "U"
-names(rkigg)[names(rkigg) == "Geschlecht"] <- "Sex" 
-rkigg$Altersgruppe <- gsub("A", "", rkigg$Altersgruppe)
-
-rkigg$CFR <- (rkigg$Delta_Deaths / rkigg$Delta_Confirmed) * 100
-rkigg$CFR[rkigg$Sex == "U"] <- NA
-
-prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = Delta_Deaths, fill = Sex, color = Sex)) +
-  geom_bar(position="dodge", stat = "identity" ) +
-  ylab("") +
-  ggtitle(paste("Altersverteilung, Todesfälle (N=", sum(rkigg$Delta_Deaths), ", ",
-                max(rki$Date), ")", sep = ""))
-
-prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = Delta_Confirmed, fill = Sex, color = Sex)) +
-  geom_bar(position="dodge", stat = "identity" ) +
-  ylab("") +
-  ggtitle(paste("Altersverteilung, Positiv Getestete (N=", sum(rkigg$Delta_Confirmed), ", ", 
-                max(rki$Date), ")", sep = ""))
-
-prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
-  geom_bar(position="dodge", stat = "identity" ) +
-  ylab("") +
-  ggtitle(paste("Todesfälle / Positiv Getestete [%] (", max(rki$Date), ")", sep = ""))
-
-# prki1
-# prki2
-# prki3
 
 ###################### ToDo
 # https://stats.idre.ucla.edu/r/faq/how-can-i-explore-different-smooths-in-ggplot2/
@@ -401,4 +342,5 @@ prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) 
 ###################### github:
 # https://happygitwithr.com/existing-github-first.html
 
-  
+#https://www.reddit.com/r/dataisbeautiful/comments/fs9tj2/oc_fit_tanh_to_covid19_data_provided_by_john/fm0731j/
+#(a0 * (tanh((x + a1) * a2) + 1))

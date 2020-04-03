@@ -8,26 +8,25 @@ dashboardPage(
     useShinyjs(),
     sidebarMenu(
       id = "tabs",
-      menuItem("Worldwide Data", icon = icon("atlas"), startExpanded = TRUE,
-               menuSubItem(ctype[1], tabName = "wwd1"),
-               menuSubItem(ctype[2], tabName = "wwd2"),
-               menuSubItem(ctype[3], tabName = "wwd3"),
-               menuSubItem(ctype[4], tabName = "wwd4"),
-               menuSubItem(ctype[5], tabName = "wwd5")
+      menuItem("Show Cases", 
+               icon = icon("atlas"),
+               tabName = "wwd1"
       ),
-      # menuItem("RKI, Bundesländer", tabName = "rki1", icon = icon("dashboard")
-      # ),
-      menuItem("RKI, Altersverteilung", tabName = "rki2", icon = icon("bar-chart")
+      radioButtons("cases", NULL, choices = ctype, selected = ctype[1]),
+      menuItem("Other Data", 
+               icon = icon("bar-chart"),
+               startExpanded = FALSE,
+               menuSubItem("Deaths / Confirmed Case", tabName = "wwd5"),
+               menuSubItem("RKI, Altersverteilung", tabName = "rki2")
       )
       
     ),
-    
     radioButtons("repo", "Repository:",
                  choices = c("Johns Hopkins" 
                              , "ECDC"
                              , "RKI (Germany)"
                              # , "J. Hopkins Web" 
-                             # , "RKI (Bundesländer)"
+                             , "RKI (Bundesländer)"
                  ),
                  selected = "Johns Hopkins"),
     
@@ -37,16 +36,14 @@ dashboardPage(
     
     checkboxInput("normalize", label = "Cases per Million Inhabitants", value = TRUE),
     
-    radioButtons("yaxt", "Y-axis of Cases:",
-                 choices = c("linear", "logarithmic"), selected = "logarithmic", 
-                 inline = TRUE),
     
-    radioButtons("rfit", "Fit of Rate:",
-                 choices = c("linear", "loess"), selected = "linear", 
-                 inline = TRUE),
+    dateInput("startd", "From Date:", value = "2020-03-01", min = min_date, max = max_date,
+              format = "yyyy-mm-dd", startview = "month", weekstart = 0,
+              language = "en", width = NULL),
     
-    # sliderInput("delay", "Delay [days]",
-    #             min = 0, max = 40, value = 5),
+    dateInput("stopd", "To Date:", value = max_date, min = min_date, max = max_date,
+              format = "yyyy-mm-dd", startview = "month", weekstart = 0,
+              language = "en", width = NULL),
     
     collapsed = FALSE  
   ),
@@ -55,31 +52,31 @@ dashboardPage(
     tabItems(
       tabItem(tabName = "wwd1",
               fluidRow(
-                box(width = 4, plotOutput('Plot1')),
+                box(width = 4, plotOutput('Plot1', click = "plot_click")),
                 box(width = 4, plotOutput('Plot2')),
                 box(width = 4, plotOutput('Plot3'))
-              )
-      ),
-      tabItem(tabName = "wwd2",
+              ),
               fluidRow(
-                box(width = 4, plotOutput('Plot4')),
-                box(width = 4, plotOutput('Plot5')),
-                box(width = 4, plotOutput('Plot6'))
-              )
-              
-      ),
-      tabItem(tabName = "wwd3",
+                column(width = 4,
+                       radioButtons("yaxt", "y-axis:",
+                                    choices = c("linear", "logarithmic"), selected = "logarithmic", 
+                                    inline = TRUE),
+                       
+                       radioButtons("yafit", "Fit:",
+                                    choices = c("exponential","no fit"), selected = "exponential", 
+                                    inline = TRUE) 
+                ),
+                column(width = 4,
+                       radioButtons("rfit", "Fit:",
+                                    choices = c("linear", "loess", "no fit"), selected = "linear", 
+                                    inline = TRUE)
+                )
+              ) ,
               fluidRow(
-                box(width = 4, plotOutput('Plot7')),
-                box(width = 4, plotOutput('Plot8')),
-                box(width = 4, plotOutput('Plot9'))
-              )      
-      ),
-      tabItem(tabName = "wwd4",
-              fluidRow(
-                box(width = 4, plotOutput('Plot10')),
-                box(width = 4, plotOutput('Plot11')),
-                box(width = 4, plotOutput('Plot12'))
+                column(width = 3,
+                       verbatimTextOutput("info1")),
+                column(width = 1,
+                       actionButton("reset", "Reset"))
               )
       ),
       tabItem(tabName = "wwd5",
@@ -92,6 +89,11 @@ dashboardPage(
                 box(width = 4, plotOutput('AvFaelle')),  
                 box(width = 4, plotOutput('AvTodesFaelle')),
                 box(width = 4, plotOutput('CFR')) 
+              ),
+              fluidRow(
+                column(width = 4,
+                       verbatimTextOutput("selinfo")
+                )
               )
       )
     )

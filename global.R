@@ -23,6 +23,12 @@ compareLE <- function(v1,v2) {
   return(same)
 }
 
+compareGE <- function(v1,v2) {
+  same <- (v1 >= v2) | (is.na(v1) & is.na(v2))
+  same[is.na(same)] <- FALSE
+  return(same)
+}
+
 # Johns Hopkins Master Repository #############################
 confirmed_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
 confirmed <- read_csv(confirmed_data)
@@ -82,13 +88,13 @@ tm$Delta_Deaths[2:length(tm$Delta_Deaths)] <- diff(tm$Deaths, 1)
 tm$Delta_Deaths[! tm$cmatch] <- tm$Deaths[! tm$cmatch]
 
 tm$Rate_Confirmed <- (tm$Delta_Confirmed / tm$Confirmed) * 100
-tm$Rate_Confirmed[compareLE(tm$Rate_Confirmed, 0)] <- NA
+# tm$Rate_Confirmed[compareLE(tm$Rate_Confirmed, 0)] <- NA
 tm$Rate_Recovered <- (tm$Delta_Recovered / tm$Recovered) * 100
-tm$Rate_Recovered[compareLE(tm$Rate_Recovered, 0)] <- NA
+# tm$Rate_Recovered[compareLE(tm$Rate_Recovered, 0)] <- NA
 tm$Rate_Active <- (tm$Delta_Active / tm$Active) * 100
-tm$Rate_Active[compareLE(tm$Rate_Active, 0)] <- NA
+# tm$Rate_Active[compareLE(tm$Rate_Active, 0)] <- NA
 tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
-tm$Rate_Deaths[compareLE(tm$Rate_Deaths, 0)] <- NA
+# tm$Rate_Deaths[compareLE(tm$Rate_Deaths, 0)] <- NA
 
 
 # # Johns Hopkins Web repository ######################################
@@ -175,9 +181,9 @@ ecdc$Rate_Recovered <- 0
 ecdc$Rate_Active <- 0
 
 ecdc$Rate_Confirmed <- (ecdc$Delta_Confirmed / ecdc$Confirmed) * 100
-ecdc$Rate_Confirmed[compareLE(ecdc$Rate_Confirmed, 0)] <- NA
+# ecdc$Rate_Confirmed[compareLE(ecdc$Rate_Confirmed, 0)] <- NA
 ecdc$Rate_Deaths <- (ecdc$Delta_Deaths / ecdc$Deaths) * 100
-ecdc$Rate_Deaths[compareLE(ecdc$Rate_Deaths, 0)] <- NA
+# ecdc$Rate_Deaths[compareLE(ecdc$Rate_Deaths, 0)] <- NA
 
 # RKI Data
 # warning("vor RKI Daten") #DEBUG
@@ -225,9 +231,9 @@ rkia$Rate_Recovered <- 0
 rkia$Rate_Active <- 0
 
 rkia$Rate_Confirmed <- (rkia$Delta_Confirmed / rkia$Confirmed) * 100
-rkia$Rate_Confirmed[compareLE(rkia$Rate_Confirmed, 0)] <- NA
+# rkia$Rate_Confirmed[compareLE(rkia$Rate_Confirmed, 0)] <- NA
 rkia$Rate_Deaths <- (rkia$Delta_Deaths / rkia$Deaths) * 100
-rkia$Rate_Deaths[compareLE(rkia$Rate_Deaths, 0)] <- NA
+# rkia$Rate_Deaths[compareLE(rkia$Rate_Deaths, 0)] <- NA
 
 rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths) ~ Date, rki, sum)
 rkig$Country_Region <- "Germany"
@@ -260,9 +266,9 @@ rkig$Rate_Recovered <- 0
 rkig$Rate_Active <- 0
 
 rkig$Rate_Confirmed <- (rkig$Delta_Confirmed / rkig$Confirmed) * 100
-rkig$Rate_Confirmed[compareLE(rkig$Rate_Confirmed, 0)] <- NA
+# rkig$Rate_Confirmed[compareLE(rkig$Rate_Confirmed, 0)] <- NA
 rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
-rkig$Rate_Deaths[compareLE(rkig$Rate_Deaths, 0)] <- NA
+# rkig$Rate_Deaths[compareLE(rkig$Rate_Deaths, 0)] <- NA
 
 max_date <- max(max(ecdc$Date), max(rkig$Date))
 max_date <- max(max_date, max(tm$Date)) 

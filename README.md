@@ -13,6 +13,8 @@ This shinyapp needs the following packages:
     require2(xml2)
     require2(htmltab)
     require2(ggplot2)
+    require2(dplyr)
+    require2(broom)
 
 Simply run from R or RStudio with:
 

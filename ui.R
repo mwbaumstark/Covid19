@@ -68,7 +68,7 @@ dashboardPage(
                 ),
                 column(width = 4,
                        radioButtons("rfit", "Fit:",
-                                    choices = c("linear", "loess", "no fit"), selected = "linear", 
+                                    choices = c("constant", "loess", "no fit"), selected = "constant", 
                                     inline = TRUE)
                 )
               ) ,

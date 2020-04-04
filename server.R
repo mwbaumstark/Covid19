@@ -3,92 +3,112 @@ library(shinyjs)
 library(shinydashboard)
 library(lubridate)
 library(ggplot2)
-
+# library(dplyr) # for lm fit
+# library(broom) # for lm fit
 
 #function to plot cumulative cases, optionally with exp. fit
 mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
-  tss$y <- tss[[col]]
-  if (normalize) tss$y <- tss$y / inh[tss$Country_Region]
-  
-  #   lm fit is not correct. Work in progress :-)  
-  #  
-  #   tss$yf[tss$y >= 1] <- tss$y[tss$y >= 1] 
-  #   # 
-  #   # print(factor(tss$Country_Region))
-  #   # print(nlevels(factor(tss$Country_Region)))
-  #   # print(unique(tss$vc))
-  #   # print(nlevels(factor(tss$vc)))
-  #   
-  #   if ((nlevels(factor(tss$Country_Region)) > 1) & (nlevels(factor(tss$vc))) > 1) {
-  #     fm <- lm(log(yf) ~ Date:Country_Region:vc, tss)
-  #   } else if ((nlevels(factor(tss$Country_Region)) == 1) & (nlevels(factor(tss$vc))) > 1) {
-  #     fm <- lm(log(yf) ~ Date:vc, tss)
-  #   } else if ((nlevels(factor(tss$Country_Region)) > 1) & (nlevels(factor(tss$vc))) == 1) {
-  #     fm <- lm(log(yf) ~ Date:Country_Region, tss)
-  #   } else {
-  #     fm <- lm(log(yf) ~ Date, tss) 
-  #   }
-  #   
-  #    print(fm)
-  #   
-  #   predslm = as.data.frame(predict(fm, interval = "confidence"))
-  # #  print(predslm)
-  #   tss$fit[!is.na(tss$yf)] <- exp(predslm$fit)
-  #   tss$lwr[!is.na(tss$yf)] <- exp(predslm$lwr)
-  #   tss$upr[!is.na(tss$yf)] <- exp(predslm$upr)
-  
-  p1 <- ggplot(tss, aes(x = Date, y = y, color = Country_Region)) +
-    geom_point() +
-    ylab("") +
-    ggtitle(paste(titel, max(tss$Date), ")", sep = "")) +
-    theme(legend.position = "none")
-  if (yafit == "no fit") {
-    p1 <- p1 + geom_line()
-  }
-  if (ylog) {
-    p1 <- p1 + scale_y_log10()
-  }
-  if (ylog & (yafit == "exponential")) {
-    p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region), 
-                           method = "lm",
-                           alpha = .15
-    )
+  if (dim(tss)[1] > 0) {    # Hack to prevent crash
+    tss$y <- tss[[col]]
+    if (normalize) tss$y <- tss$y / inh[tss$Country_Region]
+    
+    # not stable ######    
+    # print(table(compareGE(tss$y, 1))) #DEBUG
+    # 
+    # tss$yf[compareGE(tss$y, 1)] <- tss$y[compareGE(tss$y, 1)]
+    # tss$yl <- log(tss$yf)
+    # tss$.rownames <- rownames(tss)
+    # 
+    # print("y") #DEBUG
+    # print(summary(tss$y)) #DEBUG
+    # print("yf") #DEBUG
+    # print(summary(tss$yf)) #DEBUG
+    # print("yl") #DEBUG
+    # print(summary(tss$yl)) #DEBUG
+    # tss$eins <- 1 #DEBUG
+    # tss$eins[is.na(tss$yl)] <- 0 #DEBUG
+    # print(table(tss$eins, tss$Country_Region, tss$vc, useNA = "ifany")) #DEBUG
+    # 
+    # fitted_models <- tss %>% group_by(Country_Region, vc) %>% 
+    #   do(model = lm(yl ~ Date, data = . , na.action = "na.exclude"))
+    # 
+    # fit <- fitted_models %>% augment(model)
+    # 
+    # tssf <- merge(tss, fit, by = c("Date", "Country_Region", "vc"), all = TRUE)
+    # 
+    # tssf$fit <- exp(tssf$.fitted)
+    # tssf$lwr <- exp(tssf$.fitted - 2*tssf$.se.fit)
+    # tssf$upr <- exp(tssf$.fitted + 2*tssf$.se.fit)
+    # 
+    # tss <- tssf
+    
+    p1 <- ggplot(tss, aes(x = Date, y = y, color = Country_Region)) +
+      geom_point() +
+      ylab("") +
+      ggtitle(paste(titel, max(tss$Date), ")", sep = "")) +
+      theme(legend.position = "none")
+    if (yafit == "no fit") {
+      p1 <- p1 + geom_line()
+    }
+    if (ylog) {
+      p1 <- p1 + scale_y_log10()
+    }
+    if (ylog & yafit == "exponential") {
+      # if (yafit == "exponential") {
+      p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region),
+                             method = "lm",
+                             alpha = .15
+      ) # +
+      # p1 <- p1 + 
+      #   geom_line(aes(y=fit)) +
+      #   geom_ribbon(aes(ymin = lwr, ymax = upr, fill = Country_Region, color = NULL), alpha = .15) 
+    }
+  } else {
+    p1 <- ggplot + theme_void()
   }
   return(p1)
 }
 
 #function to plot rate of increase, optionally with fit
 mk_plot2 <- function(tss, col, titel, fit) {
-  y <- tss[[col]]
-  p1 <- ggplot(tss, aes(x = Date, y = 100/y, color = Country_Region)) +
-    geom_point() +
-    #    ylab("%") +
-    ylab("Days") +
-    ggtitle(paste(titel , max(tss$Date), ")", sep = ""))+
-    theme(legend.position = "none")
-  if (fit == "linear") {
-    p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region), 
-                           alpha = .15,
-                           method = "lm", 
-                           formula = (y ~ 1))
-  } else if (fit == "loess")  {
-    p1 <- p1 + geom_smooth(method = "loess", 
-                           alpha = .15,
-                           aes(fill = Country_Region))
-  } else if (fit == "no fit")  {
-    p1 <- p1 + geom_line()
+  if (dim(tss)[1] > 0) {    # Hack to prevent crash
+    y <- tss[[col]]
+    p1 <- ggplot(tss, aes(x = Date, y = 100/y, color = Country_Region)) +
+      geom_point() +
+      #    ylab("%") +
+      ylab("Days") +
+      ggtitle(paste(titel , max(tss$Date), ")", sep = ""))+
+      theme(legend.position = "none")
+    if (fit == "constant") {
+      p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region), 
+                             alpha = .15,
+                             method = "lm", 
+                             formula = (y ~ 1))
+    } else if (fit == "loess")  {
+      p1 <- p1 + geom_smooth(method = "loess", 
+                             alpha = .15,
+                             aes(fill = Country_Region))
+    } else if (fit == "no fit")  {
+      p1 <- p1 + geom_line()
+    }
+  } else {
+    p1 <- ggplot + theme_void()
   }
   return(p1)
 }
 
 #function to plot rate of increase, optionally with fit
 mk_plot3 <- function(tss, col, titel, normalize, inh) {
-  y <- tss[[col]]
-  if (normalize) y <- y / inh[tss$Country_Region]
-  p1 <- ggplot(tss, aes(x = Date, y = y, fill = Country_Region, color = Country_Region)) +
-    geom_bar(position="dodge", stat = "identity") +
-    ylab("") +
-    ggtitle(paste(titel, max(tss$Date), ")", sep = ""))
+  if (dim(tss)[1] > 0) {    # Hack to prevent crash
+    y <- tss[[col]]
+    if (normalize) y <- y / inh[tss$Country_Region]
+    p1 <- ggplot(tss, aes(x = Date, y = y, fill = Country_Region, color = Country_Region)) +
+      geom_bar(position="dodge", stat = "identity") +
+      ylab("") +
+      ggtitle(paste(titel, max(tss$Date), ")", sep = ""))
+  } else {
+    p1 <- ggplot + theme_void()
+  }
   return(p1)
 }
 
@@ -143,9 +163,9 @@ shinyServer(function(input, output, session) {
     
     td$vc <- "A"
     if (is.numeric(defl$x)) {
-      #      if (as_date(defl$x) < max(td$Date)) {
-      td$vc[td$Date >= as_date(defl$x)] <- "B"
-      #      }
+      tmp <- as_date(defl$x)
+      td$vc[td$Date >= tmp] <- "B"
+      td$vc[td$Date == tmp] <- NA
     }
     
     # print(paste("td:", dim(td))) # DEBUG
@@ -160,7 +180,7 @@ shinyServer(function(input, output, session) {
     
     tss <- subset(tsss, (Date >= input$startd) & (Date <= input$stopd))
     
-#    print(paste("tss:", dim(tss))) # DEBUG
+    #    print(paste("tss:", dim(tss))) # DEBUG
     
     if (input$tabs == "wwd1") {
       
@@ -221,7 +241,7 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Recovered", 
-                       "Daily rate of increase [%], Recovered Cases (", 
+                       "Doubling period [days], Recovered Cases (", 
                        input$rfit
         )
         
@@ -241,7 +261,7 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Active", 
-                       "Daily rate of increase [%], Active Cases (", 
+                       "Doubling period [days], Active Cases (", 
                        input$rfit
         )
         

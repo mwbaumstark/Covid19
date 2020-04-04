@@ -3,10 +3,10 @@ library(shinydashboard)
 library(readr)
 library(lubridate)
 library(reshape2)
-library(readxl)
-library(httr)
-library(xml2)
-library(htmltab)
+# library(readxl)
+# library(httr)
+# library(xml2)
+# library(htmltab)
 library(ggplot2)
 
 
@@ -19,6 +19,12 @@ compareNA <- function(v1,v2) {
 
 compareLE <- function(v1,v2) {
   same <- (v1 <= v2) | (is.na(v1) & is.na(v2))
+  same[is.na(same)] <- FALSE
+  return(same)
+}
+
+compareGE <- function(v1,v2) {
+  same <- (v1 >= v2) | (is.na(v1) & is.na(v2))
   same[is.na(same)] <- FALSE
   return(same)
 }
@@ -82,13 +88,13 @@ tm$Delta_Deaths[2:length(tm$Delta_Deaths)] <- diff(tm$Deaths, 1)
 tm$Delta_Deaths[! tm$cmatch] <- tm$Deaths[! tm$cmatch]
 
 tm$Rate_Confirmed <- (tm$Delta_Confirmed / tm$Confirmed) * 100
-tm$Rate_Confirmed[compareLE(tm$Rate_Confirmed, 0)] <- NA
+# tm$Rate_Confirmed[compareLE(tm$Rate_Confirmed, 0)] <- NA
 tm$Rate_Recovered <- (tm$Delta_Recovered / tm$Recovered) * 100
-tm$Rate_Recovered[compareLE(tm$Rate_Recovered, 0)] <- NA
+# tm$Rate_Recovered[compareLE(tm$Rate_Recovered, 0)] <- NA
 tm$Rate_Active <- (tm$Delta_Active / tm$Active) * 100
-tm$Rate_Active[compareLE(tm$Rate_Active, 0)] <- NA
+# tm$Rate_Active[compareLE(tm$Rate_Active, 0)] <- NA
 tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
-tm$Rate_Deaths[compareLE(tm$Rate_Deaths, 0)] <- NA
+# tm$Rate_Deaths[compareLE(tm$Rate_Deaths, 0)] <- NA
 
 
 # # Johns Hopkins Web repository ######################################
@@ -121,20 +127,26 @@ tm$Rate_Deaths[compareLE(tm$Rate_Deaths, 0)] <- NA
 
 
 # ECDC repository #########################
-url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date(), "%Y-%m-%d"), ".xlsx", sep = "")
+url <- "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv" 
 
-#current day not always present
-try(
-  status <-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
-)
-if (status$status_code != 200) {
-  #get day before today 
-  url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date()-1, "%Y-%m-%d"), ".xlsx", sep = "")
-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
-}
+ecdc_raw <- read_csv(url)
+ecdc_raw$dateRep <- dmy(ecdc_raw$dateRep)
 
-#read the Dataset sheet 
-ecdc_raw <- read_excel(tf)
+# #####
+# url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date(), "%Y-%m-%d"), ".xlsx", sep = "")
+# 
+# #current day not always present
+# try(
+#   status <-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
+# )
+# if (status$status_code != 200) {
+#   #get day before today
+#   url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date()-1, "%Y-%m-%d"), ".xlsx", sep = "")
+#   GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
+# }
+# 
+# #read the Dataset sheet
+# ecdc_raw <- read_excel(tf)
 
 #rename countries to match Johns Hopkins
 ecdc_raw$countriesAndTerritories <- gsub("_", " ", ecdc_raw$countriesAndTerritories, fixed = TRUE)
@@ -175,9 +187,9 @@ ecdc$Rate_Recovered <- 0
 ecdc$Rate_Active <- 0
 
 ecdc$Rate_Confirmed <- (ecdc$Delta_Confirmed / ecdc$Confirmed) * 100
-ecdc$Rate_Confirmed[compareLE(ecdc$Rate_Confirmed, 0)] <- NA
+# ecdc$Rate_Confirmed[compareLE(ecdc$Rate_Confirmed, 0)] <- NA
 ecdc$Rate_Deaths <- (ecdc$Delta_Deaths / ecdc$Deaths) * 100
-ecdc$Rate_Deaths[compareLE(ecdc$Rate_Deaths, 0)] <- NA
+# ecdc$Rate_Deaths[compareLE(ecdc$Rate_Deaths, 0)] <- NA
 
 # RKI Data
 # warning("vor RKI Daten") #DEBUG
@@ -185,6 +197,7 @@ rki_data <- "https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329d
 rki_full <- read_delim(rki_data, ",")
 
 rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
+rki_full$Meldedatum <- ymd(rki_full$Meldedatum) # convert to date
 
 rki_Datenstand <- max(rki_full$Datenstand)
 
@@ -225,9 +238,9 @@ rkia$Rate_Recovered <- 0
 rkia$Rate_Active <- 0
 
 rkia$Rate_Confirmed <- (rkia$Delta_Confirmed / rkia$Confirmed) * 100
-rkia$Rate_Confirmed[compareLE(rkia$Rate_Confirmed, 0)] <- NA
+# rkia$Rate_Confirmed[compareLE(rkia$Rate_Confirmed, 0)] <- NA
 rkia$Rate_Deaths <- (rkia$Delta_Deaths / rkia$Deaths) * 100
-rkia$Rate_Deaths[compareLE(rkia$Rate_Deaths, 0)] <- NA
+# rkia$Rate_Deaths[compareLE(rkia$Rate_Deaths, 0)] <- NA
 
 rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths) ~ Date, rki, sum)
 rkig$Country_Region <- "Germany"
@@ -260,12 +273,11 @@ rkig$Rate_Recovered <- 0
 rkig$Rate_Active <- 0
 
 rkig$Rate_Confirmed <- (rkig$Delta_Confirmed / rkig$Confirmed) * 100
-rkig$Rate_Confirmed[compareLE(rkig$Rate_Confirmed, 0)] <- NA
+# rkig$Rate_Confirmed[compareLE(rkig$Rate_Confirmed, 0)] <- NA
 rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
-rkig$Rate_Deaths[compareLE(rkig$Rate_Deaths, 0)] <- NA
+# rkig$Rate_Deaths[compareLE(rkig$Rate_Deaths, 0)] <- NA
 
-max_date <- max(max(ecdc$Date), max(rkig$Date))
-max_date <- max(max_date, max(tm$Date)) 
+max_date <- max(max(tm$Date), max(ecdc$Date), max(rkig$Date))
 min_date <- min(min(tm$Date), min(ecdc$Date), min(rkig$Date))
 
 ######################################################################

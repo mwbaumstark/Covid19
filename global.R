@@ -3,10 +3,10 @@ library(shinydashboard)
 library(readr)
 library(lubridate)
 library(reshape2)
-library(readxl)
-library(httr)
-library(xml2)
-library(htmltab)
+# library(readxl)
+# library(httr)
+# library(xml2)
+# library(htmltab)
 library(ggplot2)
 
 
@@ -127,20 +127,26 @@ tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
 
 
 # ECDC repository #########################
-url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date(), "%Y-%m-%d"), ".xlsx", sep = "")
+url <- "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv" 
 
-#current day not always present
-try(
-  status <-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
-)
-if (status$status_code != 200) {
-  #get day before today 
-  url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date()-1, "%Y-%m-%d"), ".xlsx", sep = "")
-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
-}
+ecdc_raw <- read_csv(url)
+ecdc_raw$dateRep <- dmy(ecdc_raw$dateRep)
 
-#read the Dataset sheet 
-ecdc_raw <- read_excel(tf)
+# #####
+# url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date(), "%Y-%m-%d"), ".xlsx", sep = "")
+# 
+# #current day not always present
+# try(
+#   status <-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
+# )
+# if (status$status_code != 200) {
+#   #get day before today
+#   url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date()-1, "%Y-%m-%d"), ".xlsx", sep = "")
+#   GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
+# }
+# 
+# #read the Dataset sheet
+# ecdc_raw <- read_excel(tf)
 
 #rename countries to match Johns Hopkins
 ecdc_raw$countriesAndTerritories <- gsub("_", " ", ecdc_raw$countriesAndTerritories, fixed = TRUE)
@@ -191,6 +197,7 @@ rki_data <- "https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329d
 rki_full <- read_delim(rki_data, ",")
 
 rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
+rki_full$Meldedatum <- ymd(rki_full$Meldedatum) # convert to date
 
 rki_Datenstand <- max(rki_full$Datenstand)
 
@@ -270,8 +277,7 @@ rkig$Rate_Confirmed <- (rkig$Delta_Confirmed / rkig$Confirmed) * 100
 rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
 # rkig$Rate_Deaths[compareLE(rkig$Rate_Deaths, 0)] <- NA
 
-max_date <- max(max(ecdc$Date), max(rkig$Date))
-max_date <- max(max_date, max(tm$Date)) 
+max_date <- max(max(tm$Date), max(ecdc$Date), max(rkig$Date))
 min_date <- min(min(tm$Date), min(ecdc$Date), min(rkig$Date))
 
 ######################################################################

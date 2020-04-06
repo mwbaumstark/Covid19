@@ -70,7 +70,9 @@ dashboardPage(
                        radioButtons("rfit", "Fit:",
                                     choices = c("constant", "loess", "no fit"), selected = "constant", 
                                     inline = TRUE)
-                )
+                ),
+                column(width = 4,
+                       tableOutput('table1')                )
               ) ,
               fluidRow(
                 column(width = 3,

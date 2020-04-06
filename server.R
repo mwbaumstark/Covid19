@@ -9,7 +9,9 @@ library(ggplot2)
 #function to plot cumulative cases, optionally with exp. fit
 mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
   if (dim(tss)[1] > 0) {    # Hack to prevent crash
+    
     tss$y <- tss[[col]]
+    
     if (normalize) tss$y <- tss$y / inh[tss$Country_Region]
     
     # not stable ######    
@@ -188,6 +190,17 @@ shinyServer(function(input, output, session) {
       show("cases")
       show("startd")
       show("stopd")
+      
+      output$table1 <- renderTable({
+        aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
+                    Country_Region, tss,  max)},
+        striped = FALSE,
+        bordered = TRUE,
+        digits = 0,
+        caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
+        caption.placement = getOption("xtable.caption.placement", "top"),
+        caption.width = getOption("xtable.caption.width", NULL)
+      )
       
       if (input$cases == ctype[1]) {
         

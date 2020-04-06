@@ -6,13 +6,13 @@ As data sources repositories from Johns Hopkins, ECDC, and RKI can be used.
 
 To run the dashboard some R-packages are required, that can be installed with the commands below:
 
-    require2(shiny)
-    require2(shinydashboard)
-    require2(shinyjs)
-    require2(readr)
-    require2(lubridate)
-    require2(reshape2)
-    require2(ggplot2)
+    install.packages(shiny)
+    install.packages(shinydashboard)
+    install.packages(shinyjs)
+    install.packages(readr)
+    install.packages(lubridate)
+    install.packages(reshape2)
+    install.packages(ggplot2)
 
 Then simply run from R or RStudio with:
 

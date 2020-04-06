@@ -8,6 +8,7 @@ library(reshape2)
 # library(xml2)
 # library(htmltab)
 library(ggplot2)
+library("jsonlite")
 
 
 #compare with NAs
@@ -29,42 +30,55 @@ compareGE <- function(v1,v2) {
   return(same)
 }
 
-# Johns Hopkins Master Repository #############################
-confirmed_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
-confirmed <- read_csv(confirmed_data)
+# # Johns Hopkins Master Repository #############################
+# confirmed_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
+# confirmed <- read_csv(confirmed_data)
+# 
+# cm <- melt(confirmed, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
+#            value.name = "Confirmed", variable.name = "Date")
+# names(cm)[2] <- "Country_Region"
+# cm <- subset(cm, select = c("Country_Region", "Date", "Confirmed") )
+# cm <- aggregate(Confirmed ~ Country_Region + Date, cm, sum)
+# cm$Date <-  mdy(cm$Date)
+# 
+# 
+# deaths_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
+# deaths <- read_csv(deaths_data)
+# 
+# dm <- melt(deaths, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
+#            value.name = "Deaths", variable.name = "Date")
+# names(dm)[2] <- "Country_Region"
+# dm <- subset(dm, select = c("Country_Region", "Date", "Deaths") )
+# dm <- aggregate(Deaths ~ Country_Region + Date, dm, sum)
+# dm$Date <-  mdy(dm$Date)
+# 
+# 
+# recovered_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv"
+# recovered <- read_csv(recovered_data)
+# 
+# rm <- melt(recovered, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
+#            value.name = "Recovered", variable.name = "Date")
+# names(rm)[2] <- "Country_Region"
+# rm <- subset(rm, select = c("Country_Region", "Date", "Recovered") )
+# rm <- aggregate(Recovered ~ Country_Region + Date, rm, sum)
+# rm$Date <-  mdy(rm$Date)
+# 
+# tmp <- merge(cm, dm, by= c("Country_Region", "Date"), all = TRUE)
+# tm <- merge(tmp, rm, by= c("Country_Region", "Date"), all = TRUE)
 
-cm <- melt(confirmed, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
-           value.name = "Confirmed", variable.name = "Date")
-names(cm)[2] <- "Country_Region"
-cm <- subset(cm, select = c("Country_Region", "Date", "Confirmed") )
-cm <- aggregate(Confirmed ~ Country_Region + Date, cm, sum)
-cm$Date <-  mdy(cm$Date)
+# more simple repository
 
+json_file <- 'https://datahub.io/core/covid-19/datapackage.json'
+json_data <- fromJSON(paste(readLines(json_file), collapse=""))
+#  if(json_data$resources$datahub$type[i]=='derived/csv')
 
-deaths_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
-deaths <- read_csv(deaths_data)
+tm_data = json_data$resources$path[4]
+tm <- read_csv(url(tm_data))
+names(tm)[2] <- "Country_Region"
 
-dm <- melt(deaths, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
-           value.name = "Deaths", variable.name = "Date")
-names(dm)[2] <- "Country_Region"
-dm <- subset(dm, select = c("Country_Region", "Date", "Deaths") )
-dm <- aggregate(Deaths ~ Country_Region + Date, dm, sum)
-dm$Date <-  mdy(dm$Date)
-
-
-recovered_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv"
-recovered <- read_csv(recovered_data)
-
-rm <- melt(recovered, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
-           value.name = "Recovered", variable.name = "Date")
-names(rm)[2] <- "Country_Region"
-rm <- subset(rm, select = c("Country_Region", "Date", "Recovered") )
-rm <- aggregate(Recovered ~ Country_Region + Date, rm, sum)
-rm$Date <-  mdy(rm$Date)
-
-tmp <- merge(cm, dm, by= c("Country_Region", "Date"), all = TRUE)
-tm <- merge(tmp, rm, by= c("Country_Region", "Date"), all = TRUE)
 tm$Active <- tm$Confirmed - tm$Deaths -tm$Recovered
+
+tm <- tm[order(tm$Country_Region, tm$Date),]
 
 tm$cmatch <- NA
 tm$cmatch[1] <- FALSE
@@ -356,3 +370,7 @@ closeAllConnections()
 
 #https://www.reddit.com/r/dataisbeautiful/comments/fs9tj2/oc_fit_tanh_to_covid19_data_provided_by_john/fm0731j/
 #(a0 * (tanh((x + a1) * a2) + 1))
+
+# Crash if no country selected
+
+

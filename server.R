@@ -293,8 +293,9 @@ shinyServer(function(input, output, session) {
       hide("cases")
       show("startd")
       show("stopd")
-      
-      delay <- 0
+
+      delay <- input$delay      
+#      delay <- 0
       if (dim(tss)[1] > 0) {    # Hack to prevent crash
         tss$DeathsRatio <- NA # error
         tss$DeathsRatio[(delay + 1):length(tss$Date)] <-
@@ -363,6 +364,15 @@ shinyServer(function(input, output, session) {
         
       }
     }
+    # else if (input$tabs == "ukl1") {
+    #   output$Plot_ukl <- renderPlot({px})
+    #   
+    #   output$table2 <- renderTable({ukl[(dim(ukl)[1]-2):dim(ukl)[1],]},
+    #     striped = FALSE,
+    #     bordered = TRUE,
+    #     digits = 0
+    #   )
+    # }
     
     output$Plot1 <- renderPlot({p1})
     output$Plot2 <- renderPlot({p2})

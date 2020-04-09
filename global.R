@@ -3,13 +3,8 @@ library(shinydashboard)
 library(readr)
 library(lubridate)
 library(reshape2)
-# library(readxl)
-# library(httr)
-# library(xml2)
-# library(htmltab)
 library(ggplot2)
 library("jsonlite")
-
 
 #compare with NAs
 compareNA <- function(v1,v2) {
@@ -30,47 +25,13 @@ compareGE <- function(v1,v2) {
   return(same)
 }
 
-# # Johns Hopkins Master Repository #############################
-# confirmed_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
-# confirmed <- read_csv(confirmed_data)
-# 
-# cm <- melt(confirmed, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
-#            value.name = "Confirmed", variable.name = "Date")
-# names(cm)[2] <- "Country_Region"
-# cm <- subset(cm, select = c("Country_Region", "Date", "Confirmed") )
-# cm <- aggregate(Confirmed ~ Country_Region + Date, cm, sum)
-# cm$Date <-  mdy(cm$Date)
-# 
-# 
-# deaths_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
-# deaths <- read_csv(deaths_data)
-# 
-# dm <- melt(deaths, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
-#            value.name = "Deaths", variable.name = "Date")
-# names(dm)[2] <- "Country_Region"
-# dm <- subset(dm, select = c("Country_Region", "Date", "Deaths") )
-# dm <- aggregate(Deaths ~ Country_Region + Date, dm, sum)
-# dm$Date <-  mdy(dm$Date)
-# 
-# 
-# recovered_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv"
-# recovered <- read_csv(recovered_data)
-# 
-# rm <- melt(recovered, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ), 
-#            value.name = "Recovered", variable.name = "Date")
-# names(rm)[2] <- "Country_Region"
-# rm <- subset(rm, select = c("Country_Region", "Date", "Recovered") )
-# rm <- aggregate(Recovered ~ Country_Region + Date, rm, sum)
-# rm$Date <-  mdy(rm$Date)
-# 
-# tmp <- merge(cm, dm, by= c("Country_Region", "Date"), all = TRUE)
-# tm <- merge(tmp, rm, by= c("Country_Region", "Date"), all = TRUE)
-
-# more simple repository
+# Johns Hopkins Master Repository #############################
+# from datahub.io (more simple repository)
 
 json_file <- 'https://datahub.io/core/covid-19/datapackage.json'
 json_data <- fromJSON(paste(readLines(json_file), collapse=""))
-#  if(json_data$resources$datahub$type[i]=='derived/csv')
+
+#  (json_data$resources$datahub$type[i]=='derived/csv')
 
 tm_data = json_data$resources$path[4]
 tm <- read_csv(url(tm_data))
@@ -110,63 +71,18 @@ tm$Rate_Active <- (tm$Delta_Active / tm$Active) * 100
 tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
 # tm$Rate_Deaths[compareLE(tm$Rate_Deaths, 0)] <- NA
 
-
-# # Johns Hopkins Web repository ######################################
-# ts_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/web-data/data/cases_time.csv"
-# ts <- read_csv(ts_data)
-# names(ts)[2] <- "Date"
-# ts$Date <-  mdy(ts$Date)
-# 
-# ts$cmatch <- NA
-# ts$cmatch[1] <- FALSE
-# ts$cmatch[(2):length(ts$Date)] <- ts$Country_Region[(2):length(ts$Date)] ==
-#   ts$Country_Region[1:(length(ts$Date) - 1)]
-# 
-# ts$Delta_Active <- 0
-# ts$Delta_Active[2:length(ts$Delta_Active)] <- diff(ts$Active, 1)
-# ts$Delta_Active[! ts$cmatch] <- ts$Active[! ts$cmatch]
-# 
-# ts$Delta_Deaths <- 0
-# ts$Delta_Deaths[2:length(ts$Delta_Deaths)] <- diff(ts$Deaths, 1)
-# ts$Delta_Deaths[! ts$cmatch] <- ts$Deaths[! ts$cmatch]
-# 
-# ts$Rate_Confirmed <- (ts$Delta_Confirmed / ts$Confirmed) * 100
-# ts$Rate_Confirmed[compareLE(ts$Rate_Confirmed, 0)] <- NA
-# ts$Rate_Recovered <- (ts$Delta_Recovered / ts$Recovered) * 100
-# ts$Rate_Recovered[compareLE(ts$Rate_Recovered, 0)] <- NA
-# ts$Rate_Active <- (ts$Delta_Active / ts$Active) * 100
-# ts$Rate_Active[compareLE(ts$Rate_Active, 0)] <- NA
-# ts$Rate_Deaths <- (ts$Delta_Deaths / ts$Deaths) * 100
-# ts$Rate_Deaths[compareLE(ts$Rate_Deaths, 0)] <- NA
-
-
 # ECDC repository #########################
 url <- "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv" 
 
 ecdc_raw <- read_csv(url)
 ecdc_raw$dateRep <- dmy(ecdc_raw$dateRep)
 
-# #####
-# url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date(), "%Y-%m-%d"), ".xlsx", sep = "")
-# 
-# #current day not always present
-# try(
-#   status <-  GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
-# )
-# if (status$status_code != 200) {
-#   #get day before today
-#   url <- paste("https://www.ecdc.europa.eu/sites/default/files/documents/COVID-19-geographic-disbtribution-worldwide-",format(Sys.Date()-1, "%Y-%m-%d"), ".xlsx", sep = "")
-#   GET(url, authenticate(":", ":", type="ntlm"), write_disk(tf <- tempfile(fileext = ".xlsx")))
-# }
-# 
-# #read the Dataset sheet
-# ecdc_raw <- read_excel(tf)
-
 #rename countries to match Johns Hopkins
 ecdc_raw$countriesAndTerritories <- gsub("_", " ", ecdc_raw$countriesAndTerritories, fixed = TRUE)
 ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "South Korea"] <- "Korea, South"
 ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "United States of America"] <- "US"
 ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "Czech Republic"] <- "Czechia"
+ecdc_raw$popData2018[ecdc_raw$countriesAndTerritories == "Czechia"] <- 10650000 # currently missing 
 
 ecdc <- subset(ecdc_raw, select = c("dateRep", "cases", "deaths", "countriesAndTerritories"))
 names(ecdc) <- c("Date", "Delta_Confirmed", "Delta_Deaths", "Country_Region")
@@ -298,24 +214,20 @@ min_date <- min(min(tm$Date), min(ecdc$Date), min(rkig$Date))
 ctype <- c("Confirmed Cases" , 
            "Deaths", 
            "Recovered Cases",
-           "Active Cases" # ,
-           # "Deaths / Confirmed Case"
+           "Active Cases" 
 )
 
 # Wichtige Länder (cases > 1000) und deren Einwohnerzahlen
-# tsc <- as.data.frame(unique(subset(ts, Confirmed > 1000)$Country_Region) )
-# names(tsc)[1] <- "Country_Region"
 
 tmc <- as.data.frame(unique(subset(tm, Confirmed > 1000)$Country_Region) )
 names(tmc)[1] <- "Country_Region"
-
-# ctr1 <- merge(tmc, tsc, by = "Country_Region", all = TRUE)
 
 ecdcc <- as.data.frame(unique(subset(ecdc, Confirmed > 1000)$Country_Region) )
 names(ecdcc)[1] <- "Country_Region"
 
 population <- aggregate(popData2018 ~ countriesAndTerritories, 
                         subset(ecdc_raw, !is.na(popData2018)), mean )
+
 # check_sd <- aggregate(popData2018 ~ countriesAndTerritories, #DEBUG
 #                       subset(ecdc_raw, !is.na(popData2018)), sd) #DEBUG
 
@@ -330,7 +242,7 @@ ctr2 <- merge(ecdcc, population, by = "Country_Region", all.x = TRUE)
 
 cp <- merge(tmc, ctr2, by = "Country_Region", all = TRUE)
 
-# print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
+print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
 
 cp <- subset(cp, ! is.na(cp$Population))
 
@@ -372,5 +284,3 @@ closeAllConnections()
 #(a0 * (tanh((x + a1) * a2) + 1))
 
 # Crash if no country selected
-
-

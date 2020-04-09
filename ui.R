@@ -15,9 +15,11 @@ dashboardPage(
       radioButtons("cases", NULL, choices = ctype, selected = ctype[1]),
       menuItem("Other Data", 
                icon = icon("bar-chart"),
+               tabName = "other",
                startExpanded = FALSE,
                menuSubItem("Deaths / Confirmed Case", tabName = "wwd5"),
-               menuSubItem("RKI, Altersverteilung", tabName = "rki2")
+               menuSubItem("RKI, Altersverteilung", tabName = "rki2")    #,
+               # menuSubItem("UKL + UHZ", tabName = "ukl1")
       )
       
     ),
@@ -85,6 +87,11 @@ dashboardPage(
               fluidRow(
                 box(width = 5, plotOutput('Plot99'))
               ),
+              fluidRow(
+                column(width = 4,
+                       sliderInput("delay", "Deaths per Cases N ago", min = 0, max = 30, value = 15 )
+                )
+              )
       ),
       tabItem(tabName = "rki2",
               fluidRow(
@@ -97,7 +104,18 @@ dashboardPage(
                        verbatimTextOutput("selinfo")
                 )
               )
-      )
+      ) # ,
+      # tabItem(tabName = "ukl1",
+      #         fluidRow(
+      #           box(width = 8, plotOutput('Plot_ukl'))
+      #         ),
+      #         fluidRow(
+      #           column(width = 4,
+      #                  tableOutput('table2')
+      #           )
+      #         )
+      # )
+      
     )
   )
 )

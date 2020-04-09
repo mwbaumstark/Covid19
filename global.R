@@ -9,7 +9,7 @@ library(reshape2)
 # library(htmltab)
 library(ggplot2)
 library("jsonlite")
-
+# library(readxl)
 
 #compare with NAs
 compareNA <- function(v1,v2) {
@@ -303,6 +303,7 @@ ctype <- c("Confirmed Cases" ,
 )
 
 # Wichtige Länder (cases > 1000) und deren Einwohnerzahlen
+
 # tsc <- as.data.frame(unique(subset(ts, Confirmed > 1000)$Country_Region) )
 # names(tsc)[1] <- "Country_Region"
 
@@ -330,7 +331,7 @@ ctr2 <- merge(ecdcc, population, by = "Country_Region", all.x = TRUE)
 
 cp <- merge(tmc, ctr2, by = "Country_Region", all = TRUE)
 
-# print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
+print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
 
 cp <- subset(cp, ! is.na(cp$Population))
 
@@ -372,5 +373,3 @@ closeAllConnections()
 #(a0 * (tanh((x + a1) * a2) + 1))
 
 # Crash if no country selected
-
-

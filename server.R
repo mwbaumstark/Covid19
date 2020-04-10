@@ -51,6 +51,10 @@ mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
       theme(legend.position = "none")
     if (yafit == "no fit") {
       p1 <- p1 + geom_line()
+    } else if (yafit == "loess") {
+      p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region),
+                             method = "loess",
+                             alpha = .15)
     }
     if (ylog) {
       p1 <- p1 + scale_y_log10()
@@ -293,9 +297,9 @@ shinyServer(function(input, output, session) {
       hide("cases")
       show("startd")
       show("stopd")
-
+      
       delay <- input$delay      
-#      delay <- 0
+      #      delay <- 0
       if (dim(tss)[1] > 0) {    # Hack to prevent crash
         tss$DeathsRatio <- NA # error
         tss$DeathsRatio[(delay + 1):length(tss$Date)] <-
@@ -364,15 +368,39 @@ shinyServer(function(input, output, session) {
         
       }
     }
-    # else if (input$tabs == "ukl1") {
-    #   output$Plot_ukl <- renderPlot({px})
-    #   
-    #   output$table2 <- renderTable({ukl[(dim(ukl)[1]-2):dim(ukl)[1],]},
-    #     striped = FALSE,
-    #     bordered = TRUE,
-    #     digits = 0
-    #   )
-    # }
+    else if (input$tabs == "links") {
+      output$link1 <- renderUI({
+        tagList("RKI:", 
+                a("Neuartiges Coronavirus in Deutschland", 
+                  href="https://www.rki.de/DE/Home/homepage_node.html"))
+      })
+      output$link2 <- renderUI({
+        tagList("RKI:", 
+                a("COVID-19-Dashboard", 
+                  href="https://experience.arcgis.com/experience/478220a4c454480e823b17327b2bf1d4"))
+      })
+      output$link3 <- renderUI({
+        tagList("BW:", 
+                a("Übersicht Infektionen und Todesfälle in Baden-Württemberg", 
+                  href="https://www.baden-wuerttemberg.de/de/service/presse/pressemitteilung/pid/uebersicht-infektionen-und-todesfaelle-in-baden-wuerttemberg/"))
+      })
+      output$link4 <- renderUI({
+        tagList("UKF:", 
+                a("Situation in UKF und UHZ (nur mit Mitarbeiter-Kennung)", 
+                  href="https://portal1.uniklinik-freiburg.de/dana-na/auth/url_1/welcome.cgi"))
+      })
+      output$link5 <- renderUI({
+        tagList("BGA:", 
+                a("Neues Coronavirus: Situation Schweiz und International", 
+                  href="https://www.bag.admin.ch/bag/de/home/krankheiten/ausbrueche-epidemien-pandemien/aktuelle-ausbrueche-epidemien/novel-cov/situation-schweiz-und-international.html"))
+      })
+      output$link7 <- renderUI({
+        tagList("Ticino:", 
+                a("Situation im Tessin", 
+                  href="https://www4.ti.ch/dss/dsp/covid19/home/"))
+      })
+      
+    }
     
     output$Plot1 <- renderPlot({p1})
     output$Plot2 <- renderPlot({p2})

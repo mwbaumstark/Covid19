@@ -128,18 +128,21 @@ rki_full <- read_delim(rki_data, ",")
 
 rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
 rki_full$Meldedatum <- ymd(rki_full$Meldedatum) # convert to date
+rki_full$Refdatum <- ymd(rki_full$Refdatum) # convert to date
 
 rki_Datenstand <- max(rki_full$Datenstand)
 
 rki <- subset(rki_full, select = -c(IdBundesland, Landkreis, ObjectId, IdLandkreis, NeuerFall,
-                                    NeuerTodesfall, Datenstand))
+                                    NeuerTodesfall, Datenstand, NeuGenesen))
 
 names(rki)[names(rki) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki)[names(rki) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-names(rki)[names(rki) == "Meldedatum"] <- "Date"
+# names(rki)[names(rki) == "Refdatum"] <- "Date"
+names(rki)[names(rki) == "Meldedatum"] <- "Date"  
 names(rki)[names(rki) == "Bundesland"] <- "Country_Region"
+names(rki)[names(rki) == "AnzahlGenesen"] <- "Delta_Recovered"
 
-rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths) ~ Date + Country_Region, rki, sum)
+rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, rki, sum)
 
 rkia$Confirmed <- 0
 rkia$Confirmed[1] <- rkia$Delta_Confirmed[1]
@@ -161,18 +164,30 @@ for (i in 2:length(rkia$Deaths)) {
 }
 
 rkia$Recovered <- 0
-rkia$Active <- 0
-rkia$Delta_Recovered <- 0
-rkia$Delta_Active <- 0
-rkia$Rate_Recovered <- 0
-rkia$Rate_Active <- 0
+rkia$Recovered[1] <- rkia$Delta_Recovered[1]
+
+for (i in 2:length(rkia$Recovered)) {
+  rkia$Recovered[i] = rkia$Recovered[i-1] + rkia$Delta_Recovered[i]
+  if (rkia$Country_Region[i] != rkia$Country_Region[i-1]){
+    rkia$Recovered[i] = rkia$Delta_Recovered[i]
+  }
+}
+
+
+rkia$Active <- rkia$Confirmed - rkia$Deaths - rkia$Recovered
+
+rkia$Delta_Active <- rkia$Delta_Confirmed - rkia$Delta_Deaths - rkia$Delta_Recovered  # correct?
+
+
+rkia$Rate_Recovered <- (rkia$Delta_Recovered / rkia$Recovered) * 100
+rkia$Rate_Active <- (rkia$Delta_Active / rkia$Active) * 100
 
 rkia$Rate_Confirmed <- (rkia$Delta_Confirmed / rkia$Confirmed) * 100
 # rkia$Rate_Confirmed[compareLE(rkia$Rate_Confirmed, 0)] <- NA
 rkia$Rate_Deaths <- (rkia$Delta_Deaths / rkia$Deaths) * 100
 # rkia$Rate_Deaths[compareLE(rkia$Rate_Deaths, 0)] <- NA
 
-rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths) ~ Date, rki, sum)
+rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered, Delta_Active) ~ Date, rkia, sum)
 rkig$Country_Region <- "Germany"
 
 rkig$Confirmed <- 0
@@ -196,16 +211,31 @@ for (i in 2:length(rkig$Deaths)) {
 }
 
 rkig$Recovered <- 0
+rkig$Recovered[1] <- rkig$Delta_Recovered[1]
+
+for (i in 2:length(rkig$Recovered)) {
+  rkig$Recovered[i] = rkig$Recovered[i-1] + rkig$Delta_Recovered[i]
+  if (rkig$Country_Region[i] != rkig$Country_Region[i-1]){
+    rkig$Recovered[i] = rkig$Delta_Recovered[i]
+  }
+}
+
 rkig$Active <- 0
-rkig$Delta_Recovered <- 0
-rkig$Delta_Active <- 0
-rkig$Rate_Recovered <- 0
-rkig$Rate_Active <- 0
+rkig$Active[1] <- rkig$Delta_Active[1]
+
+for (i in 2:length(rkig$Active)) {
+  rkig$Active[i] = rkig$Active[i-1] + rkig$Delta_Active[i]
+  if (rkig$Country_Region[i] != rkig$Country_Region[i-1]){
+    rkig$Active[i] = rkig$Delta_Active[i]
+  }
+}
 
 rkig$Rate_Confirmed <- (rkig$Delta_Confirmed / rkig$Confirmed) * 100
 # rkig$Rate_Confirmed[compareLE(rkig$Rate_Confirmed, 0)] <- NA
 rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
 # rkig$Rate_Deaths[compareLE(rkig$Rate_Deaths, 0)] <- NA
+rkig$Rate_Recovered <- (rkig$Delta_Recovered / rkig$Recovered) * 100
+rkig$Rate_Active <- (rkig$Delta_Active / rkig$Active) * 100
 
 max_date <- max(max(tm$Date), max(ecdc$Date), max(rkig$Date))
 min_date <- min(min(tm$Date), min(ecdc$Date), min(rkig$Date))

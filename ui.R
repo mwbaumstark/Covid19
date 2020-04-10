@@ -18,8 +18,8 @@ dashboardPage(
                tabName = "other",
                startExpanded = FALSE,
                menuSubItem("Deaths / Confirmed Case", tabName = "wwd5"),
-               menuSubItem("RKI, Altersverteilung", tabName = "rki2")    #,
-               # menuSubItem("UKL + UHZ", tabName = "ukl1")
+               menuSubItem("RKI, Altersverteilung", tabName = "rki2"),
+               menuSubItem("Links", tabName = "links")
       )
       
     ),
@@ -65,7 +65,7 @@ dashboardPage(
                                     inline = TRUE),
                        
                        radioButtons("yafit", "Fit:",
-                                    choices = c("exponential","no fit"), selected = "exponential", 
+                                    choices = c("exponential", "loess", "no fit"), selected = "exponential", 
                                     inline = TRUE) 
                 ),
                 column(width = 4,
@@ -104,17 +104,19 @@ dashboardPage(
                        verbatimTextOutput("selinfo")
                 )
               )
-      ) # ,
-      # tabItem(tabName = "ukl1",
-      #         fluidRow(
-      #           box(width = 8, plotOutput('Plot_ukl'))
-      #         ),
-      #         fluidRow(
-      #           column(width = 4,
-      #                  tableOutput('table2')
-      #           )
-      #         )
-      # )
+      ), 
+      tabItem(tabName = "links",
+              fluidRow(
+                column(width = 4,
+                       uiOutput("link1"),
+                       uiOutput("link2"),
+                       uiOutput("link3"),
+                       uiOutput("link4"),
+                       uiOutput("link5"),
+                       uiOutput("link7")
+                )
+              )
+      )
       
     )
   )

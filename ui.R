@@ -18,21 +18,15 @@ dashboardPage(
                tabName = "other",
                startExpanded = FALSE,
                menuSubItem("Deaths / Confirmed Case", tabName = "wwd5"),
-               menuSubItem("RKI, Altersverteilung", tabName = "rki2")    #,
-               # menuSubItem("UKL + UHZ", tabName = "ukl1")
+               menuSubItem("RKI, Altersverteilung", tabName = "rki2"),
+               menuSubItem("Links", tabName = "links")
       )
       
     ),
-    radioButtons("repo", "Repository:",
-                 choices = c("Johns Hopkins" 
-                             , "ECDC"
-                             , "RKI (Germany)"
-                             # , "J. Hopkins Web" 
-                             , "RKI (Bundesländer)"
-                 ),
-                 selected = "Johns Hopkins"),
-    
-    selectizeInput("show_c", "Select Countries to show:", choices = countries, 
+
+    selectizeInput("show_c", 
+                   "Select Countries/Region to show (including Bundesländer and Germany (RKI):", 
+                   choices = countries, 
                    selected = c("Germany", "Switzerland"),
                    multiple = TRUE),
     
@@ -61,16 +55,19 @@ dashboardPage(
               fluidRow(
                 column(width = 4,
                        radioButtons("yaxt", "y-axis:",
-                                    choices = c("linear", "logarithmic"), selected = "logarithmic", 
+                                    choices = c("linear", "logarithmic"), 
+                                    selected = "logarithmic", 
                                     inline = TRUE),
                        
                        radioButtons("yafit", "Fit:",
-                                    choices = c("exponential","no fit"), selected = "exponential", 
+                                    choices = c("exponential", "loess", "no fit"), 
+                                    selected = "loess", 
                                     inline = TRUE) 
                 ),
                 column(width = 4,
                        radioButtons("rfit", "Fit:",
-                                    choices = c("constant", "loess", "no fit"), selected = "constant", 
+                                    choices = c("constant", "loess", "no fit"), 
+                                    selected = "loess", 
                                     inline = TRUE)
                 ),
                 column(width = 4,
@@ -101,20 +98,26 @@ dashboardPage(
               ),
               fluidRow(
                 column(width = 4,
-                       verbatimTextOutput("selinfo")
+                       radioButtons("rki_cases", NULL, choices = ctype[2:length(ctype)], selected = ctype[2]),
+                       selectizeInput("rki_show_c", 
+                                      "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries, 
+                                      selected = c("Germany (RKI)"),
+                                      multiple = FALSE),
                 )
               )
-      ) # ,
-      # tabItem(tabName = "ukl1",
-      #         fluidRow(
-      #           box(width = 8, plotOutput('Plot_ukl'))
-      #         ),
-      #         fluidRow(
-      #           column(width = 4,
-      #                  tableOutput('table2')
-      #           )
-      #         )
-      # )
+      ), 
+      tabItem(tabName = "links",
+              fluidRow(
+                column(width = 4,
+                       uiOutput("link1"),
+                       uiOutput("link2"),
+                       uiOutput("link3"),
+                       uiOutput("link4"),
+                       uiOutput("link5"),
+                       uiOutput("link7")
+                )
+              )
+      )
       
     )
   )

@@ -76,7 +76,7 @@ tm$Rate_Active <- (tm$Delta_Active / tm$Active) * 100
 tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
 
 
-#### RKI Data
+#### RKI Data #### URL may change !!!
 rki_data <- "https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.csv"
 rki_full <- read_delim(rki_data, ",")
 
@@ -91,10 +91,15 @@ rki <- subset(rki_full, select = -c(IdBundesland, Landkreis, ObjectId, IdLandkre
 
 names(rki)[names(rki) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki)[names(rki) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-# names(rki)[names(rki) == "Refdatum"] <- "Date"
+# names(rki)[names(rki) == "Refdatum"] <- "Date"  # should this be used? Has a large Delay!
 names(rki)[names(rki) == "Meldedatum"] <- "Date"  
 names(rki)[names(rki) == "Bundesland"] <- "Country_Region"
 names(rki)[names(rki) == "AnzahlGenesen"] <- "Delta_Recovered"
+names(rki)[names(rki) == "Geschlecht"] <- "Sex" 
+rki$Sex[rki$Sex == "W"] <- "F"
+rki$Sex[rki$Sex == "unbekannt"] <- "U"
+
+rki$Delta_Active <- rki$Delta_Confirmed - rki$Delta_Deaths - rki$Delta_Recovered # correct?
 
 rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, rki, sum)
 
@@ -189,8 +194,8 @@ rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
 rkig$Rate_Recovered <- (rkig$Delta_Recovered / rkig$Recovered) * 100
 rkig$Rate_Active <- (rkig$Delta_Active / rkig$Active) * 100
 
-max_date <- max(max(tm$Date), max(ecdc$Date), max(rkig$Date))
-min_date <- min(min(tm$Date), min(ecdc$Date), min(rkig$Date))
+max_date <- max(max(tm$Date), max(rkig$Date))
+min_date <- min(min(tm$Date), min(rkig$Date))
 
 #### Total data set 
 
@@ -230,21 +235,12 @@ cp <- merge(tmc, population, by = "Country_Region", all.x = TRUE)
 print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
 
 cp <- subset(cp, ! is.na(cp$Population))
-cp$Country_Region <- as.character(cp$Country_Region)
-
-grki <- data.frame("Germany (RKI)",	cp$Population[cp$Country_Region == "Germany"], stringsAsFactors = FALSE)
-names(grki) <- names(cp)  
-
-cp <- bind_rows(cp, grki)
-cp$Country_Region <- factor(cp$Country_Region)
 
 countries <- as.character(cp$Country_Region)
 g_inh <- array(0, dim = length(countries), dimnames = list(countries))
 g_inh[countries] <- cp$Population
 
 ####
-rki_countries <- as.character(unique(rkia$Country_Region))
-
 Einwohner <- read_delim("12411-0013-editiert.csv", 
                         ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
                         trim_ws = TRUE)
@@ -254,32 +250,48 @@ x <- melt(Einwohner,
           value.name = "Population",
           variable.name = "Country_Region")
 x$Country_Region <- as.character(x$Country_Region)
-x$sex <- substr(x$Country_Region, nchar(x$Country_Region), nchar(x$Country_Region))
+x$Sex <- substr(x$Country_Region, nchar(x$Country_Region), nchar(x$Country_Region))
 x$Country_Region <- gsub("_.", "", x$Country_Region)
+x$Population <- x$Population / 1000000
 
-sum(x$Population) / 1000000
+x_ge <- aggregate(Population ~ Alter + Sex, x, sum)
+x_ge$Country_Region <- "Germany (RKI)"
 
-# rki_inh <- array(0, dim = length(rki_countries), dimnames = list(rki_countries))
-# rki_inh["Baden-Württemberg"] <- 11.07 
-# rki_inh["Bayern"] <- 13.08
-# rki_inh["Berlin"] <- 3.6
-# rki_inh["Brandenburg"] <- 2.52
-# rki_inh["Bremen"] <- 0.68
-# rki_inh["Hamburg"] <- 1.84
-# rki_inh["Hessen"] <- 6.27
-# rki_inh["Mecklenburg-Vorpommern"] <- 1.61
-# rki_inh["Niedersachsen"] <- 7.98
-# rki_inh["Nordrhein-Westfalen"] <- 17.93
-# rki_inh["Rheinland-Pfalz"] <- 4.09
-# rki_inh["Saarland"] <- 0.99
-# rki_inh["Sachsen"] <- 4.08
-# rki_inh["Sachsen-Anhalt"] <- 2.21
-# rki_inh["Schleswig-Holstein"] <- 2.14
-# rki_inh["Thüringen"] <- 2.14
-# rki_inh["Germany"] <- 82.79
+ge_sum <- sum(x$Population) / 1000000
+
+xx_ge <- bind_rows(x_ge, x)
+
+bp <- aggregate(Population ~ Country_Region, xx_ge, sum)
+
+rki_countries <- as.character(bp$Country_Region)
+
+rki_inh <- array(0, dim = length(rki_countries), dimnames = list(rki_countries))
+rki_inh[rki_countries] <- bp$Population
+
+countries <- c(countries, rki_countries)
+inh <- c(g_inh, rki_inh)
+
+# German Population by "Altersgruppe", "Sex", "Country_Region"
+
+xx_ge$nAlter <- gsub("-Jährige", "", xx_ge$Alter) 
+xx_ge$nAlter[xx_ge$nAlter == "unter 1 Jahr"] <- 0
+xx_ge$nAlter[xx_ge$nAlter == "90 Jahre und mehr"] <- 91
+xx_ge$nAlter <- as.numeric(xx_ge$nAlter)
+
+xx_ge$Altersgruppe <- NA
+xx_ge$Altersgruppe[xx_ge$nAlter %in% 0:4] <- "A00-A04"
+xx_ge$Altersgruppe[xx_ge$nAlter %in% 5:14] <- "A05-A14"
+xx_ge$Altersgruppe[xx_ge$nAlter %in% 15:34] <- "A15-A34"
+xx_ge$Altersgruppe[xx_ge$nAlter %in% 35:59] <- "A35-A59"
+xx_ge$Altersgruppe[xx_ge$nAlter %in% 60:79] <- "A60-A79"
+xx_ge$Altersgruppe[xx_ge$nAlter > 79] <- "A80+"
+
+xxa_ge <- aggregate(Population ~ Altersgruppe + Sex + Country_Region, xx_ge, sum)
+
+# rki <- merge(rki, xxa_ge, all.x = TRUE)
+
 
 closeAllConnections()
-
 
 #### Infos
 # https://stats.idre.ucla.edu/r/faq/how-can-i-explore-different-smooths-in-ggplot2/
@@ -293,3 +305,10 @@ closeAllConnections()
 
 #### Bugs
 # Crash if no country selected
+
+# RKI via json
+# super langsam 
+#rki_json_file <- 'https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.geojson'
+#rki_json_data <- fromJSON(paste(readLines(rki_json_file), collapse=""))
+
+# 

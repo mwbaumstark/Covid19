@@ -81,6 +81,7 @@ mk_plot2 <- function(tss, col, titel, fit) {
     y <- tss[[col]]
     p1 <- ggplot(tss, aes(x = Date, y = 100/y, color = Country_Region)) +
       geom_point() +
+      ylim(-30, 30) +
       #    ylab("%") +
       ylab("Days") +
       ggtitle(paste(titel , max(tss$Date), ")", sep = ""))+
@@ -124,54 +125,51 @@ shinyServer(function(input, output, session) {
   defl <- reactiveValues(x = NULL, y = NULL)
   
   observe({
-    RKI <- FALSE
-    inh <- g_inh
-    if (input$repo == "Johns Hopkins") {
-      td <- tm
-      if (input$show_c[1] %in% countries) select <- input$show_c
-      else select <- c("Germany", "Switzerland")
-      updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = countries,
-                           selected = select)
-      
-    } else if (input$repo == "ECDC") {
-      td <- ecdc
-      if (input$show_c[1] %in% countries) select <- input$show_c
-      else select <- c("Germany", "Switzerland")
-      updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = countries,
-                           selected = select)
-      
-    } else if (input$repo == "RKI (Germany)") {
-      RKI <- TRUE
-      td <- rkig
-      rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed) ~ Geschlecht + Altersgruppe, rki, sum)
-      updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = "Germany",
-                           selected = "Germany")
-      selectinfo <- "Germany"
-      
-    } else if (input$repo == "RKI (Bundesländer)") {
-      RKI <- TRUE
-      td <- rkia
-      inh <- rki_inh
-      if (input$show_c[1] %in% rki_countries) {
-        select <- input$show_c
-      } else {
-        select <- "Baden-Württemberg"
-      }
-      rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed) ~ Geschlecht + Altersgruppe
-                         , subset(rki, (Country_Region %in% select)), sum)
-      
-      updateSelectizeInput(session,"show_c", "Bundesländer:", choices = rki_countries,
-                           selected = select)
-      selectinfo <- select
-      # } else {
-      #   td <- ts
-    }
+    # RKI <- FALSE
+    # inh <- g_inh
+    # if (input$repo == "Johns Hopkins") {
+    #   td <- tm
+    #   if (input$show_c[1] %in% countries) select <- input$show_c
+    #   else select <- c("Germany", "Switzerland")
+    #   updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = countries,
+    #                        selected = select)
+    #   
+    # } else if (input$repo == "ECDC") {
+    #   td <- ecdc
+    #   if (input$show_c[1] %in% countries) select <- input$show_c
+    #   else select <- c("Germany", "Switzerland")
+    #   updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = countries,
+    #                        selected = select)
+    #   
+    # } else if (input$repo == "RKI (Germany)") {
+    #   RKI <- TRUE
+    #   td <- rkig
+    #   rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed) ~ Geschlecht + Altersgruppe, rki, sum)
+    #   updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = "Germany",
+    #                        selected = "Germany")
+    #   selectinfo <- "Germany"
+    #   
+    # } else if (input$repo == "RKI (Bundesländer)") {
+    #   RKI <- TRUE
+    #   td <- rkia
+    #   inh <- rki_inh
+    #   if (input$show_c[1] %in% rki_countries) {
+    #     select <- input$show_c
+    #   } else {
+    #     select <- "Baden-Württemberg"
+    #   }
+    td <- all
+    selectinfo <- input$show_c   # select
+    
+    # updateSelectizeInput(session,"show_c", "Bundesländer:", choices = rki_countries,
+    #                      selected = select)
+    
     
     td$vc <- "A"
     if (is.numeric(defl$x)) {
       tmp <- as_date(defl$x)
       td$vc[td$Date >= tmp] <- "B"
-      td$vc[td$Date == tmp] <- NA
+      #      td$vc[td$Date == tmp] <- NA
     }
     
     # print(paste("td:", dim(td))) # DEBUG
@@ -194,6 +192,7 @@ shinyServer(function(input, output, session) {
       show("cases")
       show("startd")
       show("stopd")
+      show("show_c")
       
       output$table1 <- renderTable({
         aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
@@ -292,7 +291,6 @@ shinyServer(function(input, output, session) {
     } else if (input$tabs == "wwd5") {
       
       hide("normalize")
-      show("repo")
       show("show_c")
       hide("cases")
       show("startd")
@@ -324,51 +322,79 @@ shinyServer(function(input, output, session) {
       
     } else if (input$tabs == "rki2") {
       
+      hide("cases")
+      hide("show_c")
+      hide("startd")
+      hide("stopd")
+      show("normalize")
+            
+      if (input$rki_show_c == "Germany (RKI)") {
+        rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
+                             Sex + Altersgruppe
+                           , rki, sum)
+        rkigg$Country_Region <- "Germany (RKI)"
+      } else {
+        rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
+                             Sex + Altersgruppe
+                           , subset(rki, (Country_Region == input$rki_show_c)), sum)
+        rkigg$Country_Region <- input$rki_show_c
+      } 
+      
+      rkigg <- merge(rkigg, xxa_ge, 
+                     by = c("Country_Region", "Sex", "Altersgruppe"), 
+                     all.x = TRUE)    
+      
+      rkigg$Altersgruppe <- gsub("A", "", rkigg$Altersgruppe)
+      
+      if (input$rki_cases == ctype[4]) {
+        rkigg$y <- rkigg$Delta_Active
+        cname <- "Aktive Fälle"
+        dsum <- sum(rkigg$Delta_Active)
+      } else if (input$rki_cases == ctype[3]) {
+        rkigg$y <- rkigg$Delta_Recovered
+        cname <- "Genesene"
+        dsum <- sum(rkigg$Delta_Recovered)
+      } else { 
+        rkigg$y <- rkigg$Delta_Death
+        cname <- "Todesfälle"
+        dsum <- sum(rkigg$Delta_Deaths)
+      }
+      
+      rkigg$CFR <- (rkigg$y / rkigg$Delta_Confirmed) * 100
+      rkigg$CFR[rkigg$Sex == "U"] <- NA
+      
+      csum <- sum(rkigg$Delta_Confirmed)
+      
+      if (input$normalize == TRUE) {
+        rkigg$y <- rkigg$y / rkigg$Population
+        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
+      }
+
+      prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = Delta_Confirmed, fill = Sex, color = Sex)) +
+        geom_bar(position="dodge", stat = "identity" ) +
+        ylab("") +
+        ggtitle(paste("Altersverteilung, Positiv Getestete (N=", csum, ", ", 
+                      max(rki$Date), ")", sep = ""))
+      
+      prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
+        geom_bar(position="dodge", stat = "identity" ) +
+        ylab("") +
+        ggtitle(paste("Altersverteilung ",cname, " (N=", dsum, ", ",
+                      max(rki$Date), ")", sep = ""))
+      
+      prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
+        geom_bar(position="dodge", stat = "identity" ) +
+        ylab("") +
+        ggtitle(paste(cname, " / Positiv Getestete [%] (", max(rki$Date), ")", sep = ""))
+      
+    }
+    else if (input$tabs == "links") {
       hide("normalize")
+      hide("show_c")
       hide("cases")
       hide("startd")
       hide("stopd")
       
-      if (RKI) {
-        rkigg$Geschlecht[rkigg$Geschlecht == "W"] <- "F"
-        rkigg$Geschlecht[rkigg$Geschlecht == "unbekannt"] <- "U"
-        names(rkigg)[names(rkigg) == "Geschlecht"] <- "Sex" 
-        rkigg$Altersgruppe <- gsub("A", "", rkigg$Altersgruppe)
-        
-        rkigg$CFR <- (rkigg$Delta_Deaths / rkigg$Delta_Confirmed) * 100
-        rkigg$CFR[rkigg$Sex == "U"] <- NA
-        
-        prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = Delta_Deaths, fill = Sex, color = Sex)) +
-          geom_bar(position="dodge", stat = "identity" ) +
-          ylab("") +
-          ggtitle(paste("Altersverteilung, Todesfälle (N=", sum(rkigg$Delta_Deaths), ", ",
-                        max(rki$Date), ")", sep = ""))
-        
-        prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = Delta_Confirmed, fill = Sex, color = Sex)) +
-          geom_bar(position="dodge", stat = "identity" ) +
-          ylab("") +
-          ggtitle(paste("Altersverteilung, Positiv Getestete (N=", sum(rkigg$Delta_Confirmed), ", ", 
-                        max(rki$Date), ")", sep = ""))
-        
-        prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
-          geom_bar(position="dodge", stat = "identity" ) +
-          ylab("") +
-          ggtitle(paste("Todesfälle / Positiv Getestete [%] (", max(rki$Date), ")", sep = ""))
-        output$selinfo <- renderText({
-          selectinfo 
-        })
-        
-      } else {
-        prki1 <- ggplot() + theme_void()
-        prki2 <- prki1
-        prki3 <- prki1
-        output$selinfo <- renderText({
-          "Not available" 
-        })
-        
-      }
-    }
-    else if (input$tabs == "links") {
       output$link1 <- renderUI({
         tagList("RKI:", 
                 a("Neuartiges Coronavirus in Deutschland", 
@@ -406,10 +432,9 @@ shinyServer(function(input, output, session) {
     output$Plot2 <- renderPlot({p2})
     output$Plot3 <- renderPlot({p3})
     output$Plot99 <- renderPlot({p99})
-    
-    
-    output$AvTodesFaelle <- renderPlot({prki1})
-    output$AvFaelle <- renderPlot({prki2})
+
+    output$AvFaelle <- renderPlot({prki1})
+    output$AvTodesFaelle <- renderPlot({prki2})
     output$CFR <- renderPlot({prki3})
     
   }) # End observe

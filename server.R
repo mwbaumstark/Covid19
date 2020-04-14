@@ -3,8 +3,6 @@ library(shinyjs)
 library(shinydashboard)
 library(lubridate)
 library(ggplot2)
-# library(dplyr) # for lm fit
-# library(broom) # for lm fit
 
 #function to plot cumulative cases, optionally with exp. fit
 mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
@@ -13,36 +11,6 @@ mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
     tss$y <- tss[[col]]
     
     if (normalize) tss$y <- tss$y / inh[tss$Country_Region]
-    
-    # not stable ######    
-    # print(table(compareGE(tss$y, 1))) #DEBUG
-    # 
-    # tss$yf[compareGE(tss$y, 1)] <- tss$y[compareGE(tss$y, 1)]
-    # tss$yl <- log(tss$yf)
-    # tss$.rownames <- rownames(tss)
-    # 
-    # print("y") #DEBUG
-    # print(summary(tss$y)) #DEBUG
-    # print("yf") #DEBUG
-    # print(summary(tss$yf)) #DEBUG
-    # print("yl") #DEBUG
-    # print(summary(tss$yl)) #DEBUG
-    # tss$eins <- 1 #DEBUG
-    # tss$eins[is.na(tss$yl)] <- 0 #DEBUG
-    # print(table(tss$eins, tss$Country_Region, tss$vc, useNA = "ifany")) #DEBUG
-    # 
-    # fitted_models <- tss %>% group_by(Country_Region, vc) %>% 
-    #   do(model = lm(yl ~ Date, data = . , na.action = "na.exclude"))
-    # 
-    # fit <- fitted_models %>% augment(model)
-    # 
-    # tssf <- merge(tss, fit, by = c("Date", "Country_Region", "vc"), all = TRUE)
-    # 
-    # tssf$fit <- exp(tssf$.fitted)
-    # tssf$lwr <- exp(tssf$.fitted - 2*tssf$.se.fit)
-    # tssf$upr <- exp(tssf$.fitted + 2*tssf$.se.fit)
-    # 
-    # tss <- tssf
     
     p1 <- ggplot(tss, aes(x = Date, y = y, color = Country_Region)) +
       geom_point() +
@@ -60,14 +28,10 @@ mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
       p1 <- p1 + scale_y_log10()
     }
     if (ylog & yafit == "exponential") {
-      # if (yafit == "exponential") {
       p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region),
                              method = "lm",
                              alpha = .15
-      ) # +
-      # p1 <- p1 + 
-      #   geom_line(aes(y=fit)) +
-      #   geom_ribbon(aes(ymin = lwr, ymax = upr, fill = Country_Region, color = NULL), alpha = .15) 
+      ) 
     }
   } else {
     p1 <- ggplot + theme_void()
@@ -125,62 +89,18 @@ shinyServer(function(input, output, session) {
   defl <- reactiveValues(x = NULL, y = NULL)
   
   observe({
-    # RKI <- FALSE
-    # inh <- g_inh
-    # if (input$repo == "Johns Hopkins") {
-    #   td <- tm
-    #   if (input$show_c[1] %in% countries) select <- input$show_c
-    #   else select <- c("Germany", "Switzerland")
-    #   updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = countries,
-    #                        selected = select)
-    #   
-    # } else if (input$repo == "ECDC") {
-    #   td <- ecdc
-    #   if (input$show_c[1] %in% countries) select <- input$show_c
-    #   else select <- c("Germany", "Switzerland")
-    #   updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = countries,
-    #                        selected = select)
-    #   
-    # } else if (input$repo == "RKI (Germany)") {
-    #   RKI <- TRUE
-    #   td <- rkig
-    #   rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed) ~ Geschlecht + Altersgruppe, rki, sum)
-    #   updateSelectizeInput(session,"show_c", "Select Countries to show:", choices = "Germany",
-    #                        selected = "Germany")
-    #   selectinfo <- "Germany"
-    #   
-    # } else if (input$repo == "RKI (Bundesländer)") {
-    #   RKI <- TRUE
-    #   td <- rkia
-    #   inh <- rki_inh
-    #   if (input$show_c[1] %in% rki_countries) {
-    #     select <- input$show_c
-    #   } else {
-    #     select <- "Baden-Württemberg"
-    #   }
     td <- all
     selectinfo <- input$show_c   # select
-    
-    # updateSelectizeInput(session,"show_c", "Bundesländer:", choices = rki_countries,
-    #                      selected = select)
-    
-    
     td$vc <- "A"
+    
     if (is.numeric(defl$x)) {
       tmp <- as_date(defl$x)
       td$vc[td$Date >= tmp] <- "B"
-      #      td$vc[td$Date == tmp] <- NA
     }
-    
-    # print(paste("td:", dim(td))) # DEBUG
-    # print(paste("input$show_c:", input$show_c)) # DEBUG
-    
+
     tsss <- subset(td, (td$Country_Region %in% input$show_c) )
     
-    #    tsss <- subset(td, (td$Country_Region == "Berlin") ) # debug
-    # print(paste("tsss:", dim(tsss))) # DEBUG
-    
-    mdate <- as.character(max(tsss$Date))
+#    mdate <- as.character(max(tsss$Date))
     
     tss <- subset(tsss, (Date >= input$startd) & (Date <= input$stopd))
     
@@ -314,7 +234,8 @@ shinyServer(function(input, output, session) {
           geom_smooth(method = "loess",
                       alpha = .15,
                       aes(fill = Country_Region)) +
-          ggtitle(paste("Deaths / Confirmed Cases [%] (", mdate, ")", sep = "")) +
+          ggtitle(paste("Deaths / Confirmed Cases [%] (", 
+                        as.character(max(tss$Date)), ")", sep = "")) +
           ylab("")
       } else {
         p99 <- ggplot + theme_void()
@@ -327,7 +248,7 @@ shinyServer(function(input, output, session) {
       hide("startd")
       hide("stopd")
       show("normalize")
-            
+      
       if (input$rki_show_c == "Germany (RKI)") {
         rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
                              Sex + Altersgruppe
@@ -369,7 +290,7 @@ shinyServer(function(input, output, session) {
         rkigg$y <- rkigg$y / rkigg$Population
         rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
       }
-
+      
       prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = Delta_Confirmed, fill = Sex, color = Sex)) +
         geom_bar(position="dodge", stat = "identity" ) +
         ylab("") +
@@ -432,7 +353,7 @@ shinyServer(function(input, output, session) {
     output$Plot2 <- renderPlot({p2})
     output$Plot3 <- renderPlot({p3})
     output$Plot99 <- renderPlot({p99})
-
+    
     output$AvFaelle <- renderPlot({prki1})
     output$AvTodesFaelle <- renderPlot({prki2})
     output$CFR <- renderPlot({prki3})

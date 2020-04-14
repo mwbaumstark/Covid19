@@ -142,9 +142,7 @@ rkia$Rate_Recovered <- (rkia$Delta_Recovered / rkia$Recovered) * 100
 rkia$Rate_Active <- (rkia$Delta_Active / rkia$Active) * 100
 
 rkia$Rate_Confirmed <- (rkia$Delta_Confirmed / rkia$Confirmed) * 100
-# rkia$Rate_Confirmed[compareLE(rkia$Rate_Confirmed, 0)] <- NA
 rkia$Rate_Deaths <- (rkia$Delta_Deaths / rkia$Deaths) * 100
-# rkia$Rate_Deaths[compareLE(rkia$Rate_Deaths, 0)] <- NA
 
 rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered, Delta_Active) ~ Date, rkia, sum)
 rkig$Country_Region <- "Germany (RKI)"
@@ -198,39 +196,16 @@ max_date <- max(max(tm$Date), max(rkig$Date))
 min_date <- min(min(tm$Date), min(rkig$Date))
 
 #### Total data set 
-
 all <- bind_rows(tm, rkia, rkig) 
 
 #### countries with N cases > 1000 and population 
-
 tmc <- as.data.frame(unique(subset(tm, Confirmed > 1000)$Country_Region) )
 names(tmc)[1] <- "Country_Region"
 
-# ECDC repository #### only for Population ####
-url <- "https://opendata.ecdc.europa.eu/covid19/casedistribution/csv" 
-
-ecdc_raw <- read_csv(url)
-ecdc_raw$dateRep <- dmy(ecdc_raw$dateRep)
-
-#rename countries to match Johns Hopkins
-ecdc_raw$countriesAndTerritories <- gsub("_", " ", ecdc_raw$countriesAndTerritories, fixed = TRUE)
-ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "South Korea"] <- "Korea, South"
-ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "United States of America"] <- "US"
-ecdc_raw$countriesAndTerritories[ecdc_raw$countriesAndTerritories == "Czech Republic"] <- "Czechia"
-ecdc_raw$popData2018[ecdc_raw$countriesAndTerritories == "Czechia"] <- 10650000 # currently missing 
-
-population <- aggregate(popData2018 ~ countriesAndTerritories, 
-                        subset(ecdc_raw, !is.na(popData2018)), mean )
-
-# check_sd <- aggregate(popData2018 ~ countriesAndTerritories,      #DEBUG
-#                       subset(ecdc_raw, !is.na(popData2018)), sd)  #DEBUG
-
-names(population) <- c("Country_Region", "Population")
-
-population$Population <- population$Population / 1000000
+### load population data
+load("pop_data.Rdata")
 
 cp <- merge(tmc, population, by = "Country_Region", all.x = TRUE)
-
 
 print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
 
@@ -240,56 +215,8 @@ countries <- as.character(cp$Country_Region)
 g_inh <- array(0, dim = length(countries), dimnames = list(countries))
 g_inh[countries] <- cp$Population
 
-####
-Einwohner <- read_delim("12411-0013-editiert.csv", 
-                        ";", escape_double = FALSE, locale = locale(encoding = "WINDOWS-1252"), 
-                        trim_ws = TRUE)
-
-x <- melt(Einwohner, 
-          id.vars = "Alter", 
-          value.name = "Population",
-          variable.name = "Country_Region")
-x$Country_Region <- as.character(x$Country_Region)
-x$Sex <- substr(x$Country_Region, nchar(x$Country_Region), nchar(x$Country_Region))
-x$Country_Region <- gsub("_.", "", x$Country_Region)
-x$Population <- x$Population / 1000000
-
-x_ge <- aggregate(Population ~ Alter + Sex, x, sum)
-x_ge$Country_Region <- "Germany (RKI)"
-
-ge_sum <- sum(x$Population) / 1000000
-
-xx_ge <- bind_rows(x_ge, x)
-
-bp <- aggregate(Population ~ Country_Region, xx_ge, sum)
-
-rki_countries <- as.character(bp$Country_Region)
-
-rki_inh <- array(0, dim = length(rki_countries), dimnames = list(rki_countries))
-rki_inh[rki_countries] <- bp$Population
-
 countries <- c(countries, rki_countries)
 inh <- c(g_inh, rki_inh)
-
-# German Population by "Altersgruppe", "Sex", "Country_Region"
-
-xx_ge$nAlter <- gsub("-Jährige", "", xx_ge$Alter) 
-xx_ge$nAlter[xx_ge$nAlter == "unter 1 Jahr"] <- 0
-xx_ge$nAlter[xx_ge$nAlter == "90 Jahre und mehr"] <- 91
-xx_ge$nAlter <- as.numeric(xx_ge$nAlter)
-
-xx_ge$Altersgruppe <- NA
-xx_ge$Altersgruppe[xx_ge$nAlter %in% 0:4] <- "A00-A04"
-xx_ge$Altersgruppe[xx_ge$nAlter %in% 5:14] <- "A05-A14"
-xx_ge$Altersgruppe[xx_ge$nAlter %in% 15:34] <- "A15-A34"
-xx_ge$Altersgruppe[xx_ge$nAlter %in% 35:59] <- "A35-A59"
-xx_ge$Altersgruppe[xx_ge$nAlter %in% 60:79] <- "A60-A79"
-xx_ge$Altersgruppe[xx_ge$nAlter > 79] <- "A80+"
-
-xxa_ge <- aggregate(Population ~ Altersgruppe + Sex + Country_Region, xx_ge, sum)
-
-# rki <- merge(rki, xxa_ge, all.x = TRUE)
-
 
 closeAllConnections()
 
@@ -307,7 +234,7 @@ closeAllConnections()
 # Crash if no country selected
 
 # RKI via json
-# super langsam 
+# extremely slow 
 #rki_json_file <- 'https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.geojson'
 #rki_json_data <- fromJSON(paste(readLines(rki_json_file), collapse=""))
 

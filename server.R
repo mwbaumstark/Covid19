@@ -247,7 +247,7 @@ shinyServer(function(input, output, session) {
       hide("show_c")
       hide("startd")
       hide("stopd")
-      show("normalize")
+      hide("normalize")
       
       if (input$rki_show_c == "Germany (RKI)") {
         rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
@@ -275,10 +275,14 @@ shinyServer(function(input, output, session) {
         rkigg$y <- rkigg$Delta_Recovered
         cname <- "Genesene"
         dsum <- sum(rkigg$Delta_Recovered)
-      } else { 
+      } else if (input$rki_cases == ctype[2]) {
         rkigg$y <- rkigg$Delta_Death
         cname <- "Todesfälle"
-        dsum <- sum(rkigg$Delta_Deaths)
+        dsum <- sum(rkigg$Delta_Death)
+      } else { 
+        rkigg$y <- rkigg$Delta_Confirmed
+        cname <- "Positiv Getestete"
+        dsum <- sum(rkigg$Delta_Confirmed)
       }
       
       rkigg$CFR <- (rkigg$y / rkigg$Delta_Confirmed) * 100
@@ -286,27 +290,26 @@ shinyServer(function(input, output, session) {
       
       csum <- sum(rkigg$Delta_Confirmed)
       
-      if (input$normalize == TRUE) {
-        rkigg$y <- rkigg$y / rkigg$Population
-        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
-      }
+#      if (input$normalize == TRUE) {
+        rkigg$yn <- rkigg$y / rkigg$Population
+#        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
+#      }
       
-      prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = Delta_Confirmed, fill = Sex, color = Sex)) +
+      prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
         geom_bar(position="dodge", stat = "identity" ) +
         ylab("") +
-        ggtitle(paste("Altersverteilung, Positiv Getestete (N=", csum, ", ", 
+        ggtitle(paste("Altersverteilung ", cname, " (N=", csum, ", ", 
                       max(rki$Date), ")", sep = ""))
       
-      prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
+      prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = yn, fill = Sex, color = Sex)) +
         geom_bar(position="dodge", stat = "identity" ) +
         ylab("") +
-        ggtitle(paste("Altersverteilung ",cname, " (N=", dsum, ", ",
-                      max(rki$Date), ")", sep = ""))
+        ggtitle(paste("Altersverteilung / Mio. Einwohner ", sep = ""))
       
       prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
         geom_bar(position="dodge", stat = "identity" ) +
         ylab("") +
-        ggtitle(paste(cname, " / Positiv Getestete [%] (", max(rki$Date), ")", sep = ""))
+        ggtitle(paste(cname, " / Positiv Getestete [%]", sep = ""))
       
     }
     else if (input$tabs == "links") {

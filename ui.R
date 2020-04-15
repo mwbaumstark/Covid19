@@ -98,7 +98,7 @@ dashboardPage(
               ),
               fluidRow(
                 column(width = 4,
-                       radioButtons("rki_cases", NULL, choices = ctype[2:length(ctype)], selected = ctype[2]),
+                       radioButtons("rki_cases", NULL, choices = ctype, selected = ctype[1]),
                        selectizeInput("rki_show_c", 
                                       "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries, 
                                       selected = c("Germany (RKI)"),

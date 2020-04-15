@@ -4,7 +4,6 @@ library(readr)
 library(lubridate)
 library(reshape2)
 library(ggplot2)
-library(jsonlite)
 library(dplyr)
 
 # compare with NAs
@@ -36,12 +35,11 @@ ctype <- c("Confirmed Cases" ,
 # Johns Hopkins Master Repository #############################
 # from datahub.io (more simple repository)
 
-json_file <- 'https://datahub.io/core/covid-19/datapackage.json'
-json_data <- fromJSON(paste(readLines(json_file), collapse=""))
+# json_file <- 'https://datahub.io/core/covid-19/datapackage.json'
+# json_data <- fromJSON(paste(readLines(json_file), collapse=""))
+# tm_data = json_data$resources$path[4]
 
-#  (json_data$resources$datahub$type[i]=='derived/csv')
-
-tm_data = json_data$resources$path[4]
+tm_data <- "https://datahub.io/core/covid-19/r/time-series-19-covid-combined.csv"
 tm <- read_csv(url(tm_data))
 names(tm)[2] <- "Country_Region"
 
@@ -91,7 +89,7 @@ rki <- subset(rki_full, select = -c(IdBundesland, Landkreis, ObjectId, IdLandkre
 
 names(rki)[names(rki) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki)[names(rki) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-# names(rki)[names(rki) == "Refdatum"] <- "Date"  # should this be used? Has a large Delay!
+# names(rki)[names(rki) == "Refdatum"] <- "Date"  # should this be used??
 names(rki)[names(rki) == "Meldedatum"] <- "Date"  
 names(rki)[names(rki) == "Bundesland"] <- "Country_Region"
 names(rki)[names(rki) == "AnzahlGenesen"] <- "Delta_Recovered"
@@ -238,4 +236,3 @@ closeAllConnections()
 #rki_json_file <- 'https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.geojson'
 #rki_json_data <- fromJSON(paste(readLines(rki_json_file), collapse=""))
 
-# 

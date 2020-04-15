@@ -40,7 +40,10 @@ ctype <- c("Confirmed Cases" ,
 # tm_data = json_data$resources$path[4]
 
 tm_data <- "https://datahub.io/core/covid-19/r/time-series-19-covid-combined.csv"
-tm <- read_csv(url(tm_data))
+tm_raw <- read_csv(url(tm_data))
+
+tm <- aggregate(cbind(Confirmed, Deaths, Recovered) ~ Date + `Country/Region`, tm_raw, sum)
+
 names(tm)[2] <- "Country_Region"
 
 tm$Active <- tm$Confirmed - tm$Deaths -tm$Recovered

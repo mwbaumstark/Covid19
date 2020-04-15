@@ -25,10 +25,8 @@ or checkout and run from a local dir.
 
 References:
 
-Johns Hopkins data: https://github.com/CSSEGISandData/COVID-19
-Johns Hopkins data: https://datahub.io/core/covid-19
-
-ECDC data (world population): https://www.ecdc.europa.eu/en/publications-data/download-todays-data-geographic-distribution-covid-19-cases-worldwide
+Johns Hopkins data incl. population: https://datahub.io/core/covid-19
+Upstream repository of Johns Hopkins data: https://github.com/CSSEGISandData/COVID-19
 
 RKI data: https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.csv
 

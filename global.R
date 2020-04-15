@@ -196,8 +196,9 @@ min_date <- min(min(tm$Date), min(rkig$Date))
 #### Total data set 
 all <- bind_rows(tm, rkia, rkig) 
 
-#### countries with N cases > 1000 and population 
-tmc <- as.data.frame(unique(subset(tm, Confirmed > 1000)$Country_Region) )
+#### countries with N of confirmed cases > c_limit
+c_limit <- 0
+tmc <- as.data.frame(unique(subset(tm, Confirmed >= c_limit)$Country_Region) )
 names(tmc)[1] <- "Country_Region"
 
 ### load population data
@@ -205,7 +206,7 @@ load("pop_data.Rdata")
 
 cp <- merge(tmc, population, by = "Country_Region", all.x = TRUE)
 
-print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
+# print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
 
 cp <- subset(cp, ! is.na(cp$Population))
 

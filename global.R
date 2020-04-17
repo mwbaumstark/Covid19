@@ -232,11 +232,15 @@ closeAllConnections()
 #https://www.reddit.com/r/dataisbeautiful/comments/fs9tj2/oc_fit_tanh_to_covid19_data_provided_by_john/fm0731j/
 #(a0 * (tanh((x + a1) * a2) + 1))
 
-#### Bugs
-# Crash if no country selected
-
 # RKI via json
 # extremely slow 
 #rki_json_file <- 'https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.geojson'
 #rki_json_data <- fromJSON(paste(readLines(rki_json_file), collapse=""))
 
+#R0
+# https://bmcmedinformdecismak.biomedcentral.com/articles/10.1186/1472-6947-12-147
+
+#### Bugs
+# Crash if no country selected
+
+# save(rkig, file = "../Test/rki.Rdata")

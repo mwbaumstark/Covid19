@@ -3,7 +3,7 @@ library(shinyjs)
 library(shinydashboard)
 
 dashboardPage(
-  dashboardHeader(title = "Covid19 Data"),
+  dashboardHeader(title = "Covid-19 Data"),
   dashboardSidebar(
     useShinyjs(),
     sidebarMenu(
@@ -17,6 +17,8 @@ dashboardPage(
                icon = icon("bar-chart"),
                tabName = "other",
                startExpanded = FALSE,
+               
+               menuSubItem("Eff. reproduction number", tabName = "wwd4"),
                menuSubItem("Deaths / Confirmed Case", tabName = "wwd5"),
                menuSubItem("RKI, Altersverteilung", tabName = "rki2"),
                menuSubItem("Links", tabName = "links")
@@ -65,6 +67,10 @@ dashboardPage(
                                     inline = TRUE) 
                 ),
                 column(width = 4,
+                       radioButtons("show_2", "Show:",
+                                    choices = c("Doubling period", "Daily rate"), 
+                                    selected = "Doubling period", 
+                                    inline = TRUE),
                        radioButtons("rfit", "Fit:",
                                     choices = c("constant", "loess", "no fit"), 
                                     selected = "loess", 

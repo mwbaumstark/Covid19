@@ -3,6 +3,16 @@ library(shinyjs)
 library(shinydashboard)
 library(lubridate)
 library(ggplot2)
+library(R0)
+library(dplyr)
+
+GT_obj <- R0::generation.time("gamma", c(4.7,2.9))    # @nishiura_serial_2020 
+
+## Wallinga and Teunis (2004)
+est_rt_wt <- function(ts, GT_obj) {
+  end <- length(ts) - 1 
+  R0::est.R0.TD(ts, GT=GT_obj, begin=1, end=end, nsim=1000)
+}
 
 #function to plot cumulative cases, optionally with exp. fit
 mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
@@ -40,14 +50,23 @@ mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
 }
 
 #function to plot rate of increase, optionally with fit
-mk_plot2 <- function(tss, col, titel, fit) {
+mk_plot2 <- function(tss, col, fit, show) {
   if (dim(tss)[1] > 0) {    # Hack to prevent crash
-    y <- tss[[col]]
-    p1 <- ggplot(tss, aes(x = Date, y = 100/y, color = Country_Region)) +
+    tss$y <- tss[[col]]
+    
+    if (show == "Doubling period") {
+      tss$y <- 100 / tss$y
+      ylimits <- ylim(-30, 30)
+      titel <- "Doubling period [days]"
+    } else if (show == "Daily rate") {
+      ylimits <- ylim(-10, 10)
+      titel <- "Daily rate of increase [%]"
+    } 
+    
+    p1 <- ggplot(tss, aes(x = Date, y = y, color = Country_Region)) +
       geom_point() +
-      ylim(-30, 30) +
-      #    ylab("%") +
-      ylab("Days") +
+      ylimits +
+      ylab("") +
       ggtitle(paste(titel , max(tss$Date), ")", sep = ""))+
       theme(legend.position = "none")
     if (fit == "constant") {
@@ -97,10 +116,10 @@ shinyServer(function(input, output, session) {
       tmp <- as_date(defl$x)
       td$vc[td$Date >= tmp] <- "B"
     }
-
+    
     tsss <- subset(td, (td$Country_Region %in% input$show_c) )
     
-#    mdate <- as.character(max(tsss$Date))
+    #    mdate <- as.character(max(tsss$Date))
     
     tss <- subset(tsss, (Date >= input$startd) & (Date <= input$stopd))
     
@@ -136,9 +155,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Confirmed",
-                       # "Daily rate of increase [%], Confirmed Cases (", 
-                       "Doubling period [days], Confirmed Cases (",
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Confirmed", 
@@ -157,8 +175,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Deaths", 
-                       "Doubling period [days], Deaths (", 
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Deaths", 
@@ -177,8 +195,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Recovered", 
-                       "Doubling period [days], Recovered Cases (", 
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Recovered", 
@@ -197,8 +215,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Active", 
-                       "Doubling period [days], Active Cases (", 
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Active", 
@@ -290,10 +308,10 @@ shinyServer(function(input, output, session) {
       
       csum <- sum(rkigg$Delta_Confirmed)
       
-#      if (input$normalize == TRUE) {
-        rkigg$yn <- rkigg$y / rkigg$Population
-#        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
-#      }
+      #      if (input$normalize == TRUE) {
+      rkigg$yn <- rkigg$y / rkigg$Population
+      #        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
+      #      }
       
       prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
         geom_bar(position="dodge", stat = "identity" ) +
@@ -310,6 +328,27 @@ shinyServer(function(input, output, session) {
         geom_bar(position="dodge", stat = "identity" ) +
         ylab("") +
         ggtitle(paste(cname, " / Positiv Getestete [%]", sep = ""))
+      
+    }else if (input$tabs == "wwd4") {
+      
+      hide("cases")
+      show("show_c")
+      show("startd")
+      show("stopd")
+      hide("normalize")
+      #########################################################   
+      
+      # tsss <- subset(td, (td$Country_Region %in% input$show_c) )
+      # tss <- subset(tsss, (Date >= input$startd) & (Date <= input$stopd))
+      
+      rt_wt <- est_rt_wt( tss$Confirmed, GT=GT_obj)
+      rt_wt_df <- cbind(Date=tss$Date[as.numeric(names(rt_wt$R))], R_hat=rt_wt$R, rt_wt$conf.int, Method="W & T, correct GT")
+      p1 <- ggplot(rt_wt_df, aes(x=Date, y=R_hat)) +  
+        geom_ribbon(aes(x=Date,  ymin=lower, ymax=upper, color=NULL), alpha=0.15) +
+        geom_line(color = "red") +
+        coord_cartesian(ylim=c(0, 2)) +
+        ylab(expression(R[e](t))) +
+        theme(legend.position="bottom")
       
     }
     else if (input$tabs == "links") {

@@ -68,7 +68,7 @@ dashboardPage(
                 ),
                 column(width = 4,
                        radioButtons("show_2", "Show:",
-                                    choices = c("Doubling period", "Daily rate"), 
+                                    choices = c("Doubling period", "Daily rate of increase"), 
                                     selected = "Doubling period", 
                                     inline = TRUE),
                        radioButtons("rfit", "Fit:",
@@ -96,6 +96,15 @@ dashboardPage(
                 )
               )
       ),
+      tabItem(tabName = "wwd4",
+              fluidRow(
+                box(width = 5, plotOutput('Plot98'))
+              ),
+              fluidRow(
+                column(width = 4,
+                       verbatimTextOutput("info2"))
+              )
+      ),
       tabItem(tabName = "rki2",
               fluidRow(
                 box(width = 4, plotOutput('AvFaelle')),  
@@ -108,7 +117,7 @@ dashboardPage(
                        selectizeInput("rki_show_c", 
                                       "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries, 
                                       selected = c("Germany (RKI)"),
-                                      multiple = FALSE),
+                                      multiple = FALSE)
                 )
               )
       ), 

@@ -14,6 +14,18 @@ est_rt_wt <- function(ts, GT_obj) {
   R0::est.R0.TD(ts, GT=GT_obj, begin=1, end=end, nsim=1000)
 }
 
+## RKI Method
+est_rt_rki <- function(ts, GT=4L) {
+  # Sanity check
+  if (!is.integer(GT) | !(GT>0)) stop("GT has to be postive integer.")
+  # Estimate
+  res <- sapply( (1+GT):(length(ts)-GT), function(t) {
+    sum(ts[t+(0:(GT-1))]) / sum(ts[t-(1:GT)]) 
+  })
+  names(res) <- names(ts)[(1+GT):(length(ts)-GT)]
+  return(res)
+}
+
 #function to plot cumulative cases, optionally with exp. fit
 mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
   if (dim(tss)[1] > 0) {    # Hack to prevent crash
@@ -58,7 +70,7 @@ mk_plot2 <- function(tss, col, fit, show) {
       tss$y <- 100 / tss$y
       ylimits <- ylim(-30, 30)
       titel <- "Doubling period [days]"
-    } else if (show == "Daily rate") {
+    } else if (show == "Daily rate of increase") {
       ylimits <- ylim(-10, 10)
       titel <- "Daily rate of increase [%]"
     } 
@@ -67,7 +79,7 @@ mk_plot2 <- function(tss, col, fit, show) {
       geom_point() +
       ylimits +
       ylab("") +
-      ggtitle(paste(titel , max(tss$Date), ")", sep = ""))+
+      ggtitle(paste(titel , " (", max(tss$Date), ")", sep = ""))+
       theme(legend.position = "none")
     if (fit == "constant") {
       p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region), 
@@ -336,19 +348,41 @@ shinyServer(function(input, output, session) {
       show("startd")
       show("stopd")
       hide("normalize")
-      #########################################################   
+
+      sel_r0 <- input$show_c[1]
+        
+      ts <- subset(all, (all$Country_Region %in% sel_r0 ))
+      tss <- subset(ts, (Date >= input$startd) & (Date <= input$stopd))
+
+      tss$y <- tss$Active
+#      tss$y <- tss$Confirmed
+
+      tsss <- subset(tss, Active > 2) 
+            
+      # Wallinga Teunis approach with correct GT distribution
+      rt_wt <- est_rt_wt( tsss$y, GT=GT_obj)
       
-      # tsss <- subset(td, (td$Country_Region %in% input$show_c) )
-      # tss <- subset(tsss, (Date >= input$startd) & (Date <= input$stopd))
+      # RKI method
+      rt_rki <- est_rt_rki( tsss$y %>% setNames(tsss$Date) , GT=4L)
       
-      rt_wt <- est_rt_wt( tss$Confirmed, GT=GT_obj)
-      rt_wt_df <- cbind(Date=tss$Date[as.numeric(names(rt_wt$R))], R_hat=rt_wt$R, rt_wt$conf.int, Method="W & T, correct GT")
-      p1 <- ggplot(rt_wt_df, aes(x=Date, y=R_hat)) +  
+      rt_wt_df <- cbind(Date=tsss$Date[as.numeric(names(rt_wt$R))], 
+                        R_hat=rt_wt$R, 
+                        rt_wt$conf.int, 
+                        Method="W & T, GT=(4.7±2.9)")
+      
+      rt_rki_df <- data.frame(Date=as.Date(names(rt_rki)),
+                              R_hat=rt_rki,
+                              Method="RKI, GT=4")
+      
+      p98 <- ggplot(rt_wt_df, aes(x=Date, y=R_hat, color=Method)) +  
         geom_ribbon(aes(x=Date,  ymin=lower, ymax=upper, color=NULL), alpha=0.15) +
-        geom_line(color = "red") +
+        geom_line() +
+        geom_line(data=rt_rki_df) + 
         coord_cartesian(ylim=c(0, 2)) +
         ylab(expression(R[e](t))) +
         theme(legend.position="bottom")
+      
+      output$Plot98 <- renderPlot({p98})
       
     }
     else if (input$tabs == "links") {
@@ -399,6 +433,8 @@ shinyServer(function(input, output, session) {
     output$AvFaelle <- renderPlot({prki1})
     output$AvTodesFaelle <- renderPlot({prki2})
     output$CFR <- renderPlot({prki3})
+    
+    output$info2 <- renderText({paste("Country/Region =", sel_r0)})
     
   }) # End observe
   observeEvent(input$plot_click, {

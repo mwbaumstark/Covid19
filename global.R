@@ -92,8 +92,8 @@ rki <- subset(rki_full, select = -c(IdBundesland, Landkreis, ObjectId, IdLandkre
 
 names(rki)[names(rki) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki)[names(rki) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-# names(rki)[names(rki) == "Refdatum"] <- "Date"  # should this be used??
-names(rki)[names(rki) == "Meldedatum"] <- "Date"  
+names(rki)[names(rki) == "Refdatum"] <- "Date"  # should this be used??
+# names(rki)[names(rki) == "Meldedatum"] <- "Date"  
 names(rki)[names(rki) == "Bundesland"] <- "Country_Region"
 names(rki)[names(rki) == "AnzahlGenesen"] <- "Delta_Recovered"
 names(rki)[names(rki) == "Geschlecht"] <- "Sex" 

@@ -25,7 +25,7 @@ dashboardPage(
       )
       
     ),
-
+    
     selectizeInput("show_c", 
                    "Select Countries/Region to show (including Bundesländer and Germany (RKI):", 
                    choices = countries, 
@@ -98,11 +98,16 @@ dashboardPage(
       ),
       tabItem(tabName = "wwd4",
               fluidRow(
-                box(width = 5, plotOutput('Plot98'))
+                box(width = 4, plotOutput('Plot98'))
               ),
               fluidRow(
                 column(width = 4,
-                       verbatimTextOutput("info2"))
+                       selectizeInput("r_show_c", 
+                                      "Select one Country/Region to show (including Bundesländer and Germany (RKI):", 
+                                      choices = countries, 
+                                      selected = c("Germany (RKI)"),
+                                      multiple = FALSE)
+                )
               )
       ),
       tabItem(tabName = "rki2",

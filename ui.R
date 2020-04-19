@@ -120,7 +120,7 @@ dashboardPage(
                 column(width = 4,
                        radioButtons("rki_cases", NULL, choices = ctype, selected = ctype[1]),
                        selectizeInput("rki_show_c", 
-                                      "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries, 
+                                      "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries_noLk, 
                                       selected = c("Germany (RKI)"),
                                       multiple = FALSE)
                 )

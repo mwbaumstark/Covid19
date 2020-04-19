@@ -292,12 +292,12 @@ shinyServer(function(input, output, session) {
         if (input$rki_show_c == "Germany (RKI)") {
           rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
                                Sex + Altersgruppe
-                             , rki, sum)
+                             , rki_full, sum)
           rkigg$Country_Region <- "Germany (RKI)"
         } else {
           rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
                                Sex + Altersgruppe
-                             , subset(rki, (Country_Region == input$rki_show_c)), sum)
+                             , subset(rki_full, (Country_Region == input$rki_show_c)), sum)
           rkigg$Country_Region <- input$rki_show_c
         } 
         
@@ -340,7 +340,7 @@ shinyServer(function(input, output, session) {
           geom_bar(position="dodge", stat = "identity" ) +
           ylab("") +
           ggtitle(paste("Altersverteilung ", cname, " (N=", csum, ", ", 
-                        max(rki$Date), ")", sep = ""))
+                        rki_Datenstand, ")", sep = ""))
         
         prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = yn, fill = Sex, color = Sex)) +
           geom_bar(position="dodge", stat = "identity" ) +

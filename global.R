@@ -25,6 +25,20 @@ compareGE <- function(v1,v2) {
   return(same)
 }
 
+cumFromDelta <- function(df, delta_col) {
+  cum_col <- sub("Delta_", "", delta_col)
+  df[[cum_col]] <- 0
+  df[[cum_col]][1] <- df[[delta_col]][1]
+  
+  for (i in 2:length(df[[cum_col]])) {
+    df[[cum_col]][i] = df[[cum_col]][i-1] + df[[delta_col]][i]
+    if (df$Country_Region[i] != df$Country_Region[i-1]){
+      df[[cum_col]][i] = df[[delta_col]][i]
+    }
+  }
+  return(df[[cum_col]])
+}
+
 ##### type of cases ####
 ctype <- c("Confirmed Cases" , 
            "Deaths", 
@@ -34,10 +48,6 @@ ctype <- c("Confirmed Cases" ,
 
 # Johns Hopkins Master Repository #############################
 # from datahub.io (more simple repository)
-
-# json_file <- 'https://datahub.io/core/covid-19/datapackage.json'
-# json_data <- fromJSON(paste(readLines(json_file), collapse=""))
-# tm_data = json_data$resources$path[4]
 
 tm_data <- "https://datahub.io/core/covid-19/r/time-series-19-covid-combined.csv"
 tm_raw <- read_csv(url(tm_data))
@@ -85,108 +95,49 @@ rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
 rki_full$Meldedatum <- ymd(rki_full$Meldedatum) # convert to date
 rki_full$Refdatum <- ymd(rki_full$Refdatum) # convert to date
 
+names(rki_full)[names(rki_full) == "AnzahlFall"] <- "Delta_Confirmed" 
+names(rki_full)[names(rki_full) == "AnzahlTodesfall"] <- "Delta_Deaths" 
+names(rki_full)[names(rki_full) == "Refdatum"] <- "Date"  # should this be used??
+# names(rki_full)[names(rki_full) == "Meldedatum"] <- "Date"  
+names(rki_full)[names(rki_full) == "Bundesland"] <- "Country_Region"
+names(rki_full)[names(rki_full) == "AnzahlGenesen"] <- "Delta_Recovered"
+names(rki_full)[names(rki_full) == "Geschlecht"] <- "Sex" 
+rki_full$Sex[rki_full$Sex == "W"] <- "F"
+rki_full$Sex[rki_full$Sex == "unbekannt"] <- "U"
+
+rki_full$Delta_Active <- rki_full$Delta_Confirmed - rki_full$Delta_Deaths - rki_full$Delta_Recovered # correct?
+
 rki_Datenstand <- max(rki_full$Datenstand)
 
-rki <- subset(rki_full, select = -c(IdBundesland, Landkreis, ObjectId, IdLandkreis, NeuerFall,
-                                    NeuerTodesfall, Datenstand, NeuGenesen))
+# rki <- subset(rki_full, select = -c(IdBundesland, Landkreis, ObjectId, IdLandkreis, NeuerFall,
+#                                     NeuerTodesfall, Datenstand, NeuGenesen))
 
-names(rki)[names(rki) == "AnzahlFall"] <- "Delta_Confirmed" 
-names(rki)[names(rki) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-names(rki)[names(rki) == "Refdatum"] <- "Date"  # should this be used??
-# names(rki)[names(rki) == "Meldedatum"] <- "Date"  
-names(rki)[names(rki) == "Bundesland"] <- "Country_Region"
-names(rki)[names(rki) == "AnzahlGenesen"] <- "Delta_Recovered"
-names(rki)[names(rki) == "Geschlecht"] <- "Sex" 
-rki$Sex[rki$Sex == "W"] <- "F"
-rki$Sex[rki$Sex == "unbekannt"] <- "U"
+#### RKI Bundesländer
+rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, 
+                  rki_full, sum)
 
-rki$Delta_Active <- rki$Delta_Confirmed - rki$Delta_Deaths - rki$Delta_Recovered # correct?
-
-rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, rki, sum)
-
-rkia$Confirmed <- 0
-rkia$Confirmed[1] <- rkia$Delta_Confirmed[1]
-for (i in 2:length(rkia$Confirmed)) {
-  rkia$Confirmed[i] = rkia$Confirmed[i-1] + rkia$Delta_Confirmed[i]
-  if (rkia$Country_Region[i] != rkia$Country_Region[i-1]){
-    rkia$Confirmed[i] = rkia$Delta_Confirmed[i]
-  }
-}
-
-rkia$Deaths <- 0
-rkia$Deaths[1] <- rkia$Delta_Deaths[1]
-
-for (i in 2:length(rkia$Deaths)) {
-  rkia$Deaths[i] = rkia$Deaths[i-1] + rkia$Delta_Deaths[i]
-  if (rkia$Country_Region[i] != rkia$Country_Region[i-1]){
-    rkia$Deaths[i] = rkia$Delta_Deaths[i]
-  }
-}
-
-rkia$Recovered <- 0
-rkia$Recovered[1] <- rkia$Delta_Recovered[1]
-
-for (i in 2:length(rkia$Recovered)) {
-  rkia$Recovered[i] = rkia$Recovered[i-1] + rkia$Delta_Recovered[i]
-  if (rkia$Country_Region[i] != rkia$Country_Region[i-1]){
-    rkia$Recovered[i] = rkia$Delta_Recovered[i]
-  }
-}
-
+rkia$Confirmed <- cumFromDelta(rkia, "Delta_Confirmed")
+rkia$Deaths <- cumFromDelta(rkia, "Delta_Deaths")
+rkia$Recovered <- cumFromDelta(rkia, "Delta_Recovered")
 
 rkia$Active <- rkia$Confirmed - rkia$Deaths - rkia$Recovered
-
 rkia$Delta_Active <- rkia$Delta_Confirmed - rkia$Delta_Deaths - rkia$Delta_Recovered  # correct?
-
 
 rkia$Rate_Recovered <- (rkia$Delta_Recovered / rkia$Recovered) * 100
 rkia$Rate_Active <- (rkia$Delta_Active / rkia$Active) * 100
-
 rkia$Rate_Confirmed <- (rkia$Delta_Confirmed / rkia$Confirmed) * 100
 rkia$Rate_Deaths <- (rkia$Delta_Deaths / rkia$Deaths) * 100
 
-rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered, Delta_Active) ~ Date, rkia, sum)
+#### Germany (RKI)
+rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered, Delta_Active) ~ Date, 
+                  rkia, sum)
+
 rkig$Country_Region <- "Germany (RKI)"
 
-rkig$Confirmed <- 0
-rkig$Confirmed[1] <- rkig$Delta_Confirmed[1]
-
-for (i in 2:length(rkig$Confirmed)) {
-  rkig$Confirmed[i] = rkig$Confirmed[i-1] + rkig$Delta_Confirmed[i]
-  if (rkig$Country_Region[i] != rkig$Country_Region[i-1]){
-    rkig$Confirmed[i] = rkig$Delta_Confirmed[i]
-  }
-}
-
-rkig$Deaths <- 0
-rkig$Deaths[1] <- rkig$Delta_Deaths[1]
-
-for (i in 2:length(rkig$Deaths)) {
-  rkig$Deaths[i] = rkig$Deaths[i-1] + rkig$Delta_Deaths[i]
-  if (rkig$Country_Region[i] != rkig$Country_Region[i-1]){
-    rkig$Deaths[i] = rkig$Delta_Deaths[i]
-  }
-}
-
-rkig$Recovered <- 0
-rkig$Recovered[1] <- rkig$Delta_Recovered[1]
-
-for (i in 2:length(rkig$Recovered)) {
-  rkig$Recovered[i] = rkig$Recovered[i-1] + rkig$Delta_Recovered[i]
-  if (rkig$Country_Region[i] != rkig$Country_Region[i-1]){
-    rkig$Recovered[i] = rkig$Delta_Recovered[i]
-  }
-}
-
-rkig$Active <- 0
-rkig$Active[1] <- rkig$Delta_Active[1]
-
-for (i in 2:length(rkig$Active)) {
-  rkig$Active[i] = rkig$Active[i-1] + rkig$Delta_Active[i]
-  if (rkig$Country_Region[i] != rkig$Country_Region[i-1]){
-    rkig$Active[i] = rkig$Delta_Active[i]
-  }
-}
+rkig$Confirmed <- cumFromDelta(rkig, "Delta_Confirmed")
+rkig$Deaths <- cumFromDelta(rkig, "Delta_Deaths")
+rkig$Recovered <- cumFromDelta(rkig, "Delta_Recovered")
+rkig$Active <- cumFromDelta(rkig, "Delta_Active")
 
 rkig$Rate_Confirmed <- (rkig$Delta_Confirmed / rkig$Confirmed) * 100
 rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
@@ -196,8 +147,30 @@ rkig$Rate_Active <- (rkig$Delta_Active / rkig$Active) * 100
 max_date <- max(max(tm$Date), max(rkig$Date))
 min_date <- min(min(tm$Date), min(rkig$Date))
 
+#### selected Landkreise
+sel_lk <- c("SK Freiburg i.Breisgau", "LK Breisgau-Hochschwarzwald")
+
+rki_lk <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ 
+                     Date + Landkreis, 
+                   subset(rki_full, Landkreis %in% sel_lk), 
+                   sum)
+
+names(rki_lk)[2] <- "Country_Region"
+
+rki_lk$Confirmed <- cumFromDelta(rki_lk, "Delta_Confirmed")
+rki_lk$Deaths <- cumFromDelta(rki_lk, "Delta_Deaths")
+rki_lk$Recovered <- cumFromDelta(rki_lk, "Delta_Recovered")
+
+rki_lk$Active <- rki_lk$Confirmed - rki_lk$Deaths - rki_lk$Recovered
+rki_lk$Delta_Active <- rki_lk$Delta_Confirmed - rki_lk$Delta_Deaths - rki_lk$Delta_Recovered  # correct?
+
+rki_lk$Rate_Recovered <- (rki_lk$Delta_Recovered / rki_lk$Recovered) * 100
+rki_lk$Rate_Active <- (rki_lk$Delta_Active / rki_lk$Active) * 100
+rki_lk$Rate_Confirmed <- (rki_lk$Delta_Confirmed / rki_lk$Confirmed) * 100
+rki_lk$Rate_Deaths <- (rki_lk$Delta_Deaths / rki_lk$Deaths) * 100
+
 #### Total data set 
-all <- bind_rows(tm, rkia, rkig) 
+all <- bind_rows(tm, rkia, rkig, rki_lk) 
 
 #### countries with N of confirmed cases > c_limit
 c_limit <- 0
@@ -208,8 +181,6 @@ names(tmc)[1] <- "Country_Region"
 load("pop_data.Rdata")
 
 cp <- merge(tmc, population, by = "Country_Region", all.x = TRUE)
-
-# print(cp$Country_Region[is.na(cp$Population)]) # DEBUG
 
 cp <- subset(cp, ! is.na(cp$Population))
 
@@ -239,8 +210,5 @@ closeAllConnections()
 
 #R0
 # https://bmcmedinformdecismak.biomedcentral.com/articles/10.1186/1472-6947-12-147
-
-#### Bugs
-# Crash if no country selected
 
 # save(rkig, file = "../Test/rki.Rdata")

@@ -3,6 +3,28 @@ library(shinyjs)
 library(shinydashboard)
 library(lubridate)
 library(ggplot2)
+library(R0)
+library(dplyr)
+
+GT_obj <- R0::generation.time("gamma", c(4.7,2.9))    # @nishiura_serial_2020 
+
+## Wallinga and Teunis (2004)
+est_rt_wt <- function(ts, GT_obj) {
+  end <- length(ts) - 1 
+  R0::est.R0.TD(ts, GT=GT_obj, begin=1, end=end, nsim=1000)
+}
+
+## RKI Method
+est_rt_rki <- function(ts, GT=4L) {
+  # Sanity check
+  if (!is.integer(GT) | !(GT>0)) stop("GT has to be postive integer.")
+  # Estimate
+  res <- sapply( (1+GT):(length(ts)-GT), function(t) {
+    sum(ts[t+(0:(GT-1))]) / sum(ts[t-(1:GT)]) 
+  })
+  names(res) <- names(ts)[(1+GT):(length(ts)-GT)]
+  return(res)
+}
 
 #function to plot cumulative cases, optionally with exp. fit
 mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
@@ -40,15 +62,24 @@ mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
 }
 
 #function to plot rate of increase, optionally with fit
-mk_plot2 <- function(tss, col, titel, fit) {
+mk_plot2 <- function(tss, col, fit, show) {
   if (dim(tss)[1] > 0) {    # Hack to prevent crash
-    y <- tss[[col]]
-    p1 <- ggplot(tss, aes(x = Date, y = 100/y, color = Country_Region)) +
+    tss$y <- tss[[col]]
+    
+    if (show == "Doubling period") {
+      tss$y <- 100 / tss$y
+      ylimits <- ylim(-30, 30)
+      titel <- "Doubling period [days]"
+    } else if (show == "Daily rate of increase") {
+      ylimits <- ylim(-10, 10)
+      titel <- "Daily rate of increase [%]"
+    } 
+    
+    p1 <- ggplot(tss, aes(x = Date, y = y, color = Country_Region)) +
       geom_point() +
-      ylim(-30, 30) +
-      #    ylab("%") +
-      ylab("Days") +
-      ggtitle(paste(titel , max(tss$Date), ")", sep = ""))+
+      ylimits +
+      ylab("") +
+      ggtitle(paste(titel , " (", max(tss$Date), ")", sep = ""))+
       theme(legend.position = "none")
     if (fit == "constant") {
       p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region), 
@@ -87,22 +118,21 @@ mk_plot3 <- function(tss, col, titel, normalize, inh) {
 shinyServer(function(input, output, session) {
   # print("Start Server") #DEBUG
   defl <- reactiveValues(x = NULL, y = NULL)
+  sel_c <- reactiveValues(maxI = 10) # sel_c$maxI
   
   observe({
     td <- all
     selectinfo <- input$show_c   # select
+    
     td$vc <- "A"
     
     if (is.numeric(defl$x)) {
       tmp <- as_date(defl$x)
       td$vc[td$Date >= tmp] <- "B"
     }
-
-    tsss <- subset(td, (td$Country_Region %in% input$show_c) )
     
-#    mdate <- as.character(max(tsss$Date))
-    
-    tss <- subset(tsss, (Date >= input$startd) & (Date <= input$stopd))
+    ts <- subset(td, (td$Country_Region %in% input$show_c) )
+    tss <- subset(ts, (Date >= input$startd) & (Date <= input$stopd))
     
     #    print(paste("tss:", dim(tss))) # DEBUG
     
@@ -113,6 +143,11 @@ shinyServer(function(input, output, session) {
       show("startd")
       show("stopd")
       show("show_c")
+      # if (compareNA(sel_c$maxI, 1)) {
+      #   updateSelectizeInput(session, "show_c", 
+      #                        options = list(maxItems = 10),
+      #                        selected = selectinfo)
+      # }
       
       output$table1 <- renderTable({
         aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
@@ -136,9 +171,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Confirmed",
-                       # "Daily rate of increase [%], Confirmed Cases (", 
-                       "Doubling period [days], Confirmed Cases (",
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Confirmed", 
@@ -157,8 +191,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Deaths", 
-                       "Doubling period [days], Deaths (", 
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Deaths", 
@@ -177,8 +211,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Recovered", 
-                       "Doubling period [days], Recovered Cases (", 
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Recovered", 
@@ -197,8 +231,8 @@ shinyServer(function(input, output, session) {
         )
         
         p2 <- mk_plot2(tss, "Rate_Active", 
-                       "Doubling period [days], Active Cases (", 
-                       input$rfit
+                       input$rfit,
+                       input$show_2
         )
         
         p3 <- mk_plot3(tss, "Delta_Active", 
@@ -215,11 +249,15 @@ shinyServer(function(input, output, session) {
       hide("cases")
       show("startd")
       show("stopd")
+      if (compareNA(sel_c$maxI, 1)) {
+        updateSelectizeInput(session, "show_c", 
+                             options = list(maxItems = 10),
+                             selected = selectinfo)
+      }
       
       delay <- input$delay      
-      #      delay <- 0
-      if (dim(tss)[1] > 0) {    # Hack to prevent crash
-        tss$DeathsRatio <- NA # error
+      if (dim(tss)[1] > 0) {    
+        tss$DeathsRatio <- NA 
         tss$DeathsRatio[(delay + 1):length(tss$Date)] <-
           (tss$Deaths[(delay + 1):length(tss$Date)] /
              tss$Confirmed[1:(length(tss$Date) - delay)]) * 100
@@ -249,67 +287,126 @@ shinyServer(function(input, output, session) {
       hide("stopd")
       hide("normalize")
       
-      if (input$rki_show_c == "Germany (RKI)") {
-        rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
-                             Sex + Altersgruppe
-                           , rki, sum)
-        rkigg$Country_Region <- "Germany (RKI)"
-      } else {
-        rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
-                             Sex + Altersgruppe
-                           , subset(rki, (Country_Region == input$rki_show_c)), sum)
-        rkigg$Country_Region <- input$rki_show_c
-      } 
-      
-      rkigg <- merge(rkigg, xxa_ge, 
-                     by = c("Country_Region", "Sex", "Altersgruppe"), 
-                     all.x = TRUE)    
-      
-      rkigg$Altersgruppe <- gsub("A", "", rkigg$Altersgruppe)
-      
-      if (input$rki_cases == ctype[4]) {
-        rkigg$y <- rkigg$Delta_Active
-        cname <- "Aktive Fälle"
-        dsum <- sum(rkigg$Delta_Active)
-      } else if (input$rki_cases == ctype[3]) {
-        rkigg$y <- rkigg$Delta_Recovered
-        cname <- "Genesene"
-        dsum <- sum(rkigg$Delta_Recovered)
-      } else if (input$rki_cases == ctype[2]) {
-        rkigg$y <- rkigg$Delta_Death
-        cname <- "Todesfälle"
-        dsum <- sum(rkigg$Delta_Death)
-      } else { 
-        rkigg$y <- rkigg$Delta_Confirmed
-        cname <- "Positiv Getestete"
-        dsum <- sum(rkigg$Delta_Confirmed)
-      }
-      
-      rkigg$CFR <- (rkigg$y / rkigg$Delta_Confirmed) * 100
-      rkigg$CFR[rkigg$Sex == "U"] <- NA
-      
-      csum <- sum(rkigg$Delta_Confirmed)
-      
-#      if (input$normalize == TRUE) {
+      if (input$rki_show_c != "") {    
+        
+        if (input$rki_show_c == "Germany (RKI)") {
+          rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
+                               Sex + Altersgruppe
+                             , rki_full, sum)
+          rkigg$Country_Region <- "Germany (RKI)"
+        } else {
+          rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
+                               Sex + Altersgruppe
+                             , subset(rki_full, (Country_Region == input$rki_show_c)), sum)
+          rkigg$Country_Region <- input$rki_show_c
+        } 
+        
+        
+        rkigg <- merge(rkigg, xxa_ge, 
+                       by = c("Country_Region", "Sex", "Altersgruppe"), 
+                       all.x = TRUE)    
+        
+        rkigg$Altersgruppe <- gsub("A", "", rkigg$Altersgruppe)
+        
+        if (input$rki_cases == ctype[4]) {
+          rkigg$y <- rkigg$Delta_Active
+          cname <- "Aktive Fälle"
+          dsum <- sum(rkigg$Delta_Active)
+        } else if (input$rki_cases == ctype[3]) {
+          rkigg$y <- rkigg$Delta_Recovered
+          cname <- "Genesene"
+          dsum <- sum(rkigg$Delta_Recovered)
+        } else if (input$rki_cases == ctype[2]) {
+          rkigg$y <- rkigg$Delta_Death
+          cname <- "Todesfälle"
+          dsum <- sum(rkigg$Delta_Death)
+        } else { 
+          rkigg$y <- rkigg$Delta_Confirmed
+          cname <- "Positiv Getestete"
+          dsum <- sum(rkigg$Delta_Confirmed)
+        }
+        
+        rkigg$CFR <- (rkigg$y / rkigg$Delta_Confirmed) * 100
+        rkigg$CFR[rkigg$Sex == "U"] <- NA
+        
+        csum <- sum(rkigg$Delta_Confirmed)
+        
+        #      if (input$normalize == TRUE) {
         rkigg$yn <- rkigg$y / rkigg$Population
-#        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
-#      }
+        #        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
+        #      }
+        
+        prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
+          geom_bar(position="dodge", stat = "identity" ) +
+          ylab("") +
+          ggtitle(paste("Altersverteilung ", cname, " (N=", csum, ", ", 
+                        rki_Datenstand, ")", sep = ""))
+        
+        prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = yn, fill = Sex, color = Sex)) +
+          geom_bar(position="dodge", stat = "identity" ) +
+          ylab("") +
+          ggtitle(paste("Altersverteilung / Mio. Einwohner ", sep = ""))
+        
+        prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
+          geom_bar(position="dodge", stat = "identity" ) +
+          ylab("") +
+          ggtitle(paste(cname, " / Positiv Getestete [%]", sep = ""))
+      } else {
+        prki1 <- ggplot + theme_void()
+        prki2 <- ggplot + theme_void()
+        prki3 <- ggplot + theme_void()
+      } 
+    } else if (input$tabs == "wwd4") {
       
-      prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
-        geom_bar(position="dodge", stat = "identity" ) +
-        ylab("") +
-        ggtitle(paste("Altersverteilung ", cname, " (N=", csum, ", ", 
-                      max(rki$Date), ")", sep = ""))
+      hide("cases")
+      hide("show_c")
+      show("startd")
+      show("stopd")
+      hide("normalize")
       
-      prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = yn, fill = Sex, color = Sex)) +
-        geom_bar(position="dodge", stat = "identity" ) +
-        ylab("") +
-        ggtitle(paste("Altersverteilung / Mio. Einwohner ", sep = ""))
+      sel_r0 <- input$r_show_c[1]
       
-      prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
-        geom_bar(position="dodge", stat = "identity" ) +
-        ylab("") +
-        ggtitle(paste(cname, " / Positiv Getestete [%]", sep = ""))
+      print(sel_r0)
+      
+      if(sel_r0 != "") {    
+        ts <- subset(all, (all$Country_Region %in% sel_r0 ))
+        tss <- subset(ts, (Date >= input$startd) & (Date <= input$stopd))
+        
+        tss$y <- tss$Delta_Confirmed
+        
+        tsss <- subset(tss, (y > 2)) # & (Date < max(Date - 3)))
+        
+        if (dim(tsss)[1] > 10) {       
+          # Wallinga Teunis approach with "correct" GT distribution
+          rt_wt <- est_rt_wt( tsss$y, GT=GT_obj)
+          
+          # RKI method
+          rt_rki <- est_rt_rki( tsss$y %>% setNames(tsss$Date) , GT=4L)
+          
+          rt_wt_df <- cbind(Date=tsss$Date[as.numeric(names(rt_wt$R))], 
+                            R_hat=rt_wt$R, 
+                            rt_wt$conf.int, 
+                            Method="W & T, GT=(4.7±2.9)")
+          
+          rt_rki_df <- data.frame(Date=as.Date(names(rt_rki)),
+                                  R_hat=rt_rki,
+                                  Method="simplified RKI, GT=4")
+          
+          p98 <- ggplot(rt_wt_df, aes(x=Date, y=R_hat, color=Method, fill=Method)) +  
+            geom_ribbon(aes(x=Date,  ymin=lower, ymax=upper, color=NULL), alpha=0.15) +
+            geom_line() +
+            geom_line(data=rt_rki_df) +
+            geom_smooth(data=rt_rki_df, method = "loess", alpha=0.15, se = FALSE) +
+            coord_cartesian(ylim=c(0, 2)) +
+            ylab(expression(R[e](t))) +
+            theme(legend.position="bottom")
+        } else {
+          p98 <- ggplot + theme_void()
+        }  
+      } else {
+        p98 <- ggplot + theme_void()
+      }     
+      output$Plot98 <- renderPlot({p98})
       
     }
     else if (input$tabs == "links") {
@@ -360,6 +457,8 @@ shinyServer(function(input, output, session) {
     output$AvFaelle <- renderPlot({prki1})
     output$AvTodesFaelle <- renderPlot({prki2})
     output$CFR <- renderPlot({prki3})
+    
+    output$info2 <- renderText({paste("Country/Region =", sel_r0)})
     
   }) # End observe
   observeEvent(input$plot_click, {

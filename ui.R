@@ -3,7 +3,7 @@ library(shinyjs)
 library(shinydashboard)
 
 dashboardPage(
-  dashboardHeader(title = "Covid19 Data"),
+  dashboardHeader(title = "Covid-19 Data"),
   dashboardSidebar(
     useShinyjs(),
     sidebarMenu(
@@ -17,13 +17,15 @@ dashboardPage(
                icon = icon("bar-chart"),
                tabName = "other",
                startExpanded = FALSE,
+               
+               menuSubItem("Eff. reproduction number", tabName = "wwd4"),
                menuSubItem("Deaths / Confirmed Case", tabName = "wwd5"),
                menuSubItem("RKI, Altersverteilung", tabName = "rki2"),
                menuSubItem("Links", tabName = "links")
       )
       
     ),
-
+    
     selectizeInput("show_c", 
                    "Select Countries/Region to show (including Bundesländer and Germany (RKI):", 
                    choices = countries, 
@@ -65,6 +67,10 @@ dashboardPage(
                                     inline = TRUE) 
                 ),
                 column(width = 4,
+                       radioButtons("show_2", "Show:",
+                                    choices = c("Doubling period", "Daily rate of increase"), 
+                                    selected = "Doubling period", 
+                                    inline = TRUE),
                        radioButtons("rfit", "Fit:",
                                     choices = c("constant", "loess", "no fit"), 
                                     selected = "loess", 
@@ -90,6 +96,20 @@ dashboardPage(
                 )
               )
       ),
+      tabItem(tabName = "wwd4",
+              fluidRow(
+                box(width = 4, plotOutput('Plot98'))
+              ),
+              fluidRow(
+                column(width = 4,
+                       selectizeInput("r_show_c", 
+                                      "Select one Country/Region to show (including Bundesländer and Germany (RKI):", 
+                                      choices = countries, 
+                                      selected = c("Germany (RKI)"),
+                                      multiple = FALSE)
+                )
+              )
+      ),
       tabItem(tabName = "rki2",
               fluidRow(
                 box(width = 4, plotOutput('AvFaelle')),  
@@ -100,9 +120,9 @@ dashboardPage(
                 column(width = 4,
                        radioButtons("rki_cases", NULL, choices = ctype, selected = ctype[1]),
                        selectizeInput("rki_show_c", 
-                                      "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries, 
+                                      "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries_noLk, 
                                       selected = c("Germany (RKI)"),
-                                      multiple = FALSE),
+                                      multiple = FALSE)
                 )
               )
       ), 

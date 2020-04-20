@@ -25,7 +25,7 @@ compareGE <- function(v1,v2) {
   return(same)
 }
 
-cumFromDelta <- function(df, delta_col) {
+delta2cum <- function(df, delta_col) {
   cum_col <- sub("Delta_", "", delta_col)
   df[[cum_col]] <- 0
   df[[cum_col]][1] <- df[[delta_col]][1]
@@ -37,6 +37,14 @@ cumFromDelta <- function(df, delta_col) {
     }
   }
   return(df[[cum_col]])
+}
+
+cum2delta <- function(df, cum_col) {
+  delta_col <- paste("Delta_", cum_col, sep = "")
+  df[[delta_col]] <- 0
+  df[[delta_col]][2:length(df[[delta_col]])] <- diff(df[[cum_col]], 1)
+  df[[delta_col]][! df$cmatch] <- df[[cum_col]][! df$cmatch]
+  return(df[[delta_col]])
 }
 
 ##### type of cases ####
@@ -59,27 +67,15 @@ names(tm)[2] <- "Country_Region"
 tm$Active <- tm$Confirmed - tm$Deaths -tm$Recovered
 
 tm <- tm[order(tm$Country_Region, tm$Date),]
-
 tm$cmatch <- NA
 tm$cmatch[1] <- FALSE
 tm$cmatch[(2):length(tm$Date)] <- tm$Country_Region[(2):length(tm$Date)] ==
   tm$Country_Region[1:(length(tm$Date) - 1)]
 
-tm$Delta_Confirmed <- 0
-tm$Delta_Confirmed[2:length(tm$Delta_Confirmed)] <- diff(tm$Confirmed, 1)
-tm$Delta_Confirmed[! tm$cmatch] <- tm$Confirmed[! tm$cmatch]
-
-tm$Delta_Recovered <- 0
-tm$Delta_Recovered[2:length(tm$Delta_Recovered)] <- diff(tm$Recovered, 1)
-tm$Delta_Recovered[! tm$cmatch] <- tm$Recovered[! tm$cmatch]
-
-tm$Delta_Active <- 0
-tm$Delta_Active[2:length(tm$Delta_Active)] <- diff(tm$Active, 1)
-tm$Delta_Active[! tm$cmatch] <- tm$Active[! tm$cmatch]
-
-tm$Delta_Deaths <- 0
-tm$Delta_Deaths[2:length(tm$Delta_Deaths)] <- diff(tm$Deaths, 1)
-tm$Delta_Deaths[! tm$cmatch] <- tm$Deaths[! tm$cmatch]
+tm$Delta_Confirmed <- cum2delta(tm, "Confirmed")
+tm$Delta_Recovered <- cum2delta(tm, "Recovered")
+tm$Delta_Active <- cum2delta(tm, "Active")
+tm$Delta_Deaths <- cum2delta(tm, "Deaths")
 
 tm$Rate_Confirmed <- (tm$Delta_Confirmed / tm$Confirmed) * 100
 tm$Rate_Recovered <- (tm$Delta_Recovered / tm$Recovered) * 100
@@ -97,13 +93,16 @@ rki_full$Refdatum <- ymd(rki_full$Refdatum) # convert to date
 
 names(rki_full)[names(rki_full) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki_full)[names(rki_full) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-names(rki_full)[names(rki_full) == "Refdatum"] <- "Date"  # should this be used??
+# names(rki_full)[names(rki_full) == "Refdatum"] <- "Date"  # should this be used??
 # names(rki_full)[names(rki_full) == "Meldedatum"] <- "Date"  
 names(rki_full)[names(rki_full) == "Bundesland"] <- "Country_Region"
 names(rki_full)[names(rki_full) == "AnzahlGenesen"] <- "Delta_Recovered"
 names(rki_full)[names(rki_full) == "Geschlecht"] <- "Sex" 
 rki_full$Sex[rki_full$Sex == "W"] <- "F"
 rki_full$Sex[rki_full$Sex == "unbekannt"] <- "U"
+
+rki_full$ddate <- rki_full$Meldedatum - rki_full$Refdatum
+rki_full$Date <- rki_full$Meldedatum
 
 rki_full$Delta_Active <- rki_full$Delta_Confirmed - rki_full$Delta_Deaths - rki_full$Delta_Recovered # correct?
 
@@ -116,9 +115,9 @@ rki_Datenstand <- max(rki_full$Datenstand)
 rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, 
                   rki_full, sum)
 
-rkia$Confirmed <- cumFromDelta(rkia, "Delta_Confirmed")
-rkia$Deaths <- cumFromDelta(rkia, "Delta_Deaths")
-rkia$Recovered <- cumFromDelta(rkia, "Delta_Recovered")
+rkia$Confirmed <- delta2cum(rkia, "Delta_Confirmed")
+rkia$Deaths <- delta2cum(rkia, "Delta_Deaths")
+rkia$Recovered <- delta2cum(rkia, "Delta_Recovered")
 
 rkia$Active <- rkia$Confirmed - rkia$Deaths - rkia$Recovered
 rkia$Delta_Active <- rkia$Delta_Confirmed - rkia$Delta_Deaths - rkia$Delta_Recovered  # correct?
@@ -134,10 +133,10 @@ rkig <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered, Delta_Ac
 
 rkig$Country_Region <- "Germany (RKI)"
 
-rkig$Confirmed <- cumFromDelta(rkig, "Delta_Confirmed")
-rkig$Deaths <- cumFromDelta(rkig, "Delta_Deaths")
-rkig$Recovered <- cumFromDelta(rkig, "Delta_Recovered")
-rkig$Active <- cumFromDelta(rkig, "Delta_Active")
+rkig$Confirmed <- delta2cum(rkig, "Delta_Confirmed")
+rkig$Deaths <- delta2cum(rkig, "Delta_Deaths")
+rkig$Recovered <- delta2cum(rkig, "Delta_Recovered")
+rkig$Active <- delta2cum(rkig, "Delta_Active")
 
 rkig$Rate_Confirmed <- (rkig$Delta_Confirmed / rkig$Confirmed) * 100
 rkig$Rate_Deaths <- (rkig$Delta_Deaths / rkig$Deaths) * 100
@@ -151,15 +150,15 @@ min_date <- min(min(tm$Date), min(rkig$Date))
 sel_lk <- c("SK Freiburg i.Breisgau", "LK Breisgau-Hochschwarzwald")
 
 rki_lk <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ 
-                     Date + Landkreis, 
-                   subset(rki_full, Landkreis %in% sel_lk), 
-                   sum)
+                      Date + Landkreis, 
+                    subset(rki_full, Landkreis %in% sel_lk), 
+                    sum)
 
 names(rki_lk)[2] <- "Country_Region"
 
-rki_lk$Confirmed <- cumFromDelta(rki_lk, "Delta_Confirmed")
-rki_lk$Deaths <- cumFromDelta(rki_lk, "Delta_Deaths")
-rki_lk$Recovered <- cumFromDelta(rki_lk, "Delta_Recovered")
+rki_lk$Confirmed <- delta2cum(rki_lk, "Delta_Confirmed")
+rki_lk$Deaths <- delta2cum(rki_lk, "Delta_Deaths")
+rki_lk$Recovered <- delta2cum(rki_lk, "Delta_Recovered")
 
 rki_lk$Active <- rki_lk$Confirmed - rki_lk$Deaths - rki_lk$Recovered
 rki_lk$Delta_Active <- rki_lk$Delta_Confirmed - rki_lk$Delta_Deaths - rki_lk$Delta_Recovered  # correct?
@@ -169,12 +168,52 @@ rki_lk$Rate_Active <- (rki_lk$Delta_Active / rki_lk$Active) * 100
 rki_lk$Rate_Confirmed <- (rki_lk$Delta_Confirmed / rki_lk$Confirmed) * 100
 rki_lk$Rate_Deaths <- (rki_lk$Delta_Deaths / rki_lk$Deaths) * 100
 
+#### Tessin
+ch <- read_csv("https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv", 
+               col_types = cols(date = col_date(format = "%Y-%m-%d"), 
+                                time = col_character()))
+
+
+Ti <- subset(ch, 
+             (abbreviation_canton_and_fl == "TI") &
+               (! is.na(ncumul_conf)), 
+             select = -c(time, source, abbreviation_canton_and_fl))
+
+Ti <- Ti %>% rename(Confirmed = ncumul_conf)
+Ti <- Ti %>% rename(Deaths = ncumul_deceased)
+Ti <- Ti %>% rename(Recovered = ncumul_released)
+Ti <- Ti %>% rename(Date = date)
+Ti$Active <- Ti$Confirmed - Ti$Recovered - Ti$Deaths
+
+Tis <- subset(Ti, select = -c(ncumul_tested, new_hosp, current_hosp, current_icu, current_vent))
+# names(Ti)
+
+Tis$Country_Region <- "Tessin"
+
+Tis <- Tis[order(Tis$Country_Region, Tis$Date),]
+Tis$cmatch <- NA
+Tis$cmatch[1] <- FALSE
+Tis$cmatch[(2):length(Tis$Date)] <- Tis$Country_Region[(2):length(Tis$Date)] ==
+  Tis$Country_Region[1:(length(Tis$Date) - 1)]
+
+Tis$Delta_Confirmed <- cum2delta(Tis, "Confirmed")
+Tis$Delta_Recovered <- cum2delta(Tis, "Recovered")
+Tis$Delta_Active <- cum2delta(Tis, "Active")
+Tis$Delta_Deaths <- cum2delta(Tis, "Deaths")
+
+Tis$Rate_Confirmed <- (Tis$Delta_Confirmed / Tis$Confirmed) * 100
+Tis$Rate_Recovered <- (Tis$Delta_Recovered / Tis$Recovered) * 100
+Tis$Rate_Active <- (Tis$Delta_Active / Tis$Active) * 100
+Tis$Rate_Deaths <- (Tis$Delta_Deaths / Tis$Deaths) * 100
+
+
 #### Total data set 
-all <- bind_rows(tm, rkia, rkig, rki_lk) 
+all <- bind_rows(tm, rkia, rkig, rki_lk, Tis) 
 
 #### countries with N of confirmed cases > c_limit
 c_limit <- 0
-tmc <- as.data.frame(unique(subset(tm, Confirmed >= c_limit)$Country_Region) )
+tmc <- as.data.frame(unique(subset(bind_rows(tm, Tis), 
+                                   Confirmed >= c_limit)$Country_Region) )
 names(tmc)[1] <- "Country_Region"
 
 ### load population data

@@ -6,11 +6,13 @@ library(ggplot2)
 library(R0)
 library(dplyr)
 
-GT_obj <- R0::generation.time("gamma", c(4.7,2.9))    # @nishiura_serial_2020 
+GT_data <- c(3.31,2.9) # https://hal-pasteur.archives-ouvertes.fr/pasteur-02548181/document
+# GT_obj <- R0::generation.time("gamma", c(4.7,2.9))    # @nishiura_serial_2020 
+GT_obj <- R0::generation.time("gamma", GT_data)    
 
 ## Wallinga and Teunis (2004)
 est_rt_wt <- function(ts, GT_obj) {
-  end <- length(ts) - 1 
+  end <- length(ts) - 3 
   R0::est.R0.TD(ts, GT=GT_obj, begin=1, end=end, nsim=1000)
 }
 
@@ -118,7 +120,7 @@ mk_plot3 <- function(tss, col, titel, normalize, inh) {
 shinyServer(function(input, output, session) {
   # print("Start Server") #DEBUG
   defl <- reactiveValues(x = NULL, y = NULL)
-  sel_c <- reactiveValues(maxI = 10) # sel_c$maxI
+  # sel_c <- reactiveValues(maxI = 10) # sel_c$maxI
   
   observe({
     td <- all
@@ -148,17 +150,21 @@ shinyServer(function(input, output, session) {
       #                        options = list(maxItems = 10),
       #                        selected = selectinfo)
       # }
-      
-      output$table1 <- renderTable({
-        aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
-                    Country_Region, tss,  max)},
-        striped = FALSE,
-        bordered = TRUE,
-        digits = 0,
-        caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
-        caption.placement = getOption("xtable.caption.placement", "top"),
-        caption.width = getOption("xtable.caption.width", NULL)
-      )
+      if (! is.null(input$show_c)) {    
+        
+        output$table1 <- renderTable({
+          aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
+                      Country_Region, tss,  FUN=tail,1)},
+          striped = FALSE,
+          bordered = TRUE,
+          digits = 0,
+          caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
+          caption.placement = getOption("xtable.caption.placement", "top"),
+          caption.width = getOption("xtable.caption.width", NULL)
+        )
+      } else {
+        output$table1 <- renderTable({})
+      }
       
       if (input$cases == ctype[1]) {
         
@@ -249,14 +255,18 @@ shinyServer(function(input, output, session) {
       hide("cases")
       show("startd")
       show("stopd")
-      if (compareNA(sel_c$maxI, 1)) {
-        updateSelectizeInput(session, "show_c", 
-                             options = list(maxItems = 10),
-                             selected = selectinfo)
-      }
+      # if (compareNA(sel_c$maxI, 1)) {
+      #   updateSelectizeInput(session, "show_c", 
+      #                        options = list(maxItems = 10),
+      #                        selected = selectinfo)
+      # }
       
       delay <- input$delay      
-      if (dim(tss)[1] > 0) {    
+      if (dim(tss)[1] > 0) {
+        
+        dateMax <- min(aggregate(Date ~ Country_Region, data = tss, max)$Date)
+        tss <- subset(tss, Date <= dateMax) # same max Date for all Countries
+        
         tss$DeathsRatio <- NA 
         tss$DeathsRatio[(delay + 1):length(tss$Date)] <-
           (tss$Deaths[(delay + 1):length(tss$Date)] /
@@ -275,8 +285,38 @@ shinyServer(function(input, output, session) {
           ggtitle(paste("Deaths / Confirmed Cases [%] (", 
                         as.character(max(tss$Date)), ")", sep = "")) +
           ylab("")
+        
+        dateDelay <- dateMax - delay
+        
+        dst <- subset(tss, 
+                      Date %in% c(dateDelay, dateMax), 
+                      select = c(Date, Country_Region, Deaths, Confirmed, DeathsRatio))
+        
+        dst$DeathsRatio[dst$Date == dateDelay] <- NA
+        dst$detRate <- input$ifr / dst$DeathsRatio
+
+        dst$Country_Region <- as.character(dst$Country_Region)
+        
+        for (i in unique(dst$Country_Region)) {
+          dst$detRate[dst$Country_Region == i] <- dst$detRate[(dst$Country_Region == i) &
+                                                                (! is.na(dst$detRate))]
+        }
+        dst <- subset(dst, select = -DeathsRatio)
+        dst$Estimated <- dst$Confirmed / dst$detRate
+        dst$SharePopulInfected <- dst$Estimated / (inh[dst$Country_Region] * 1000000) * 100 
+        dst$detRate <- dst$detRate * 100 # %
+        
+        output$table2 <- renderTable({dst},
+                                     striped = FALSE,
+                                     bordered = TRUE,
+                                     digits = 2,
+                                     caption = "<b> <span style='color:#000000'> Titel </b>",
+                                     caption.placement = getOption("xtable.caption.placement", "top"),
+                                     caption.width = getOption("xtable.caption.width", NULL)
+        )
       } else {
         p99 <- ggplot + theme_void()
+        output$table2 <- renderTable({})
       }
       
     } else if (input$tabs == "rki2") {
@@ -386,7 +426,7 @@ shinyServer(function(input, output, session) {
           rt_wt_df <- cbind(Date=tsss$Date[as.numeric(names(rt_wt$R))], 
                             R_hat=rt_wt$R, 
                             rt_wt$conf.int, 
-                            Method="W & T, GT=(4.7±2.9)")
+                            Method=paste0("W & T, GT=(", GT_data[1], "±", GT_data[2], ")"))
           
           rt_rki_df <- data.frame(Date=as.Date(names(rt_rki)),
                                   R_hat=rt_rki,

@@ -305,12 +305,22 @@ shinyServer(function(input, output, session) {
         dst$Estimated <- dst$Confirmed / dst$detRate
         dst$SharePopulInfected <- dst$Estimated / (inh[dst$Country_Region] * 1000000) * 100 
         dst$detRate <- dst$detRate * 100 # %
+
+        dst$Date <- format(dst$Date, "%d.%m.%Y")
+        dst$Estimated <- format(dst$Estimated, digits = 0, scientific = FALSE)
+        dst$Confirmed <- format(dst$Confirmed, digits = 0, scientific = FALSE)
+        dst$Deaths <- format(dst$Deaths, digits = 0, scientific = FALSE)
+        
+        names(dst)[names(dst) == "detRate"] <- "Detection Rate"
+        names(dst)[names(dst) == "SharePopulInfected"] <- "Share of Population Infected"
         
         output$table2 <- renderTable({dst},
-                                     striped = FALSE,
+                                     striped = TRUE,
                                      bordered = TRUE,
                                      digits = 2,
-                                     caption = "<b> <span style='color:#000000'> Titel </b>",
+                                     align = "r",
+                                     caption = "<b> <span style='color:#000000'> 
+                                     Estimation of 'detection rate' and 'share of population infected' </b>",
                                      caption.placement = getOption("xtable.caption.placement", "top"),
                                      caption.width = getOption("xtable.caption.width", NULL)
         )
@@ -481,11 +491,38 @@ shinyServer(function(input, output, session) {
                 a("Neues Coronavirus: Situation Schweiz und International", 
                   href="https://www.bag.admin.ch/bag/de/home/krankheiten/ausbrueche-epidemien-pandemien/aktuelle-ausbrueche-epidemien/novel-cov/situation-schweiz-und-international.html"))
       })
+      output$link6 <- renderUI({
+        tagList("Situation weltweit, mit Angaben zu Test-Raten:", 
+                a("worldometer", 
+                  href="https://www.worldometers.info/coronavirus/"))
+        })
       output$link7 <- renderUI({
         tagList("Ticino:", 
                 a("Situation im Tessin", 
                   href="https://www4.ti.ch/dss/dsp/covid19/home/"))
       })
+      output$link8 <- renderUI({
+        tagList("Artikel:", 
+                a("Bommer & Vollmer (2020)", 
+                  href="http://www.uni-goettingen.de/en/606540.html"))
+      })
+      output$link9 <- renderUI({
+        tagList("Artikel:", 
+                a("Henrik Salje, Cécile Tran Kiem, Noémie Lefrancq, Noémie Courtejoie, Paolo Bosetti, et al.. Estimating
+the burden of SARS-CoV-2 in France. 2020. ffpasteur-02548181", 
+                  href="https://hal-pasteur.archives-ouvertes.fr/pasteur-02548181/document"))
+      })
+      output$link10 <- renderUI({
+        tagList("Artikel:", 
+                a("Effective reproduction number estimation with R0", 
+                  href="https://staff.math.su.se/hoehle/blog/2020/04/15/effectiveR0.html"))
+      })
+      output$link11 <- renderUI({
+        tagList("RKI, Epidemiologisches Bulletin 17/2020:", 
+                a("Schätzung der aktuellen Entwicklung der SARS-CoV-2-Epidemie in Deutschland - Nowcasting", 
+                  href="https://www.rki.de/DE/Content/Infekt/EpidBull/Archiv/2020/Ausgaben/17_20_SARS-CoV2_vorab.pdf?__blob=publicationFile"))})
+      output$link12 <- renderUI({})
+      output$link13 <- renderUI({})
       
     }
     
@@ -516,7 +553,7 @@ shinyServer(function(input, output, session) {
     if (is.numeric(defl$x)) {
       paste0("Date = ", as_date(defl$x))
     } else {
-      "Click to select deflection point"
+      "Click in plot to split fit"
     }
   })
 }

@@ -6,11 +6,13 @@ library(ggplot2)
 library(R0)
 library(dplyr)
 
-GT_obj <- R0::generation.time("gamma", c(4.7,2.9))    # @nishiura_serial_2020 
+GT_data <- c(3.31,2.9) # https://hal-pasteur.archives-ouvertes.fr/pasteur-02548181/document
+# GT_obj <- R0::generation.time("gamma", c(4.7,2.9))    # @nishiura_serial_2020 
+GT_obj <- R0::generation.time("gamma", GT_data)    
 
 ## Wallinga and Teunis (2004)
 est_rt_wt <- function(ts, GT_obj) {
-  end <- length(ts) - 1 
+  end <- length(ts) - 3 
   R0::est.R0.TD(ts, GT=GT_obj, begin=1, end=end, nsim=1000)
 }
 
@@ -118,7 +120,7 @@ mk_plot3 <- function(tss, col, titel, normalize, inh) {
 shinyServer(function(input, output, session) {
   # print("Start Server") #DEBUG
   defl <- reactiveValues(x = NULL, y = NULL)
-  sel_c <- reactiveValues(maxI = 10) # sel_c$maxI
+  # sel_c <- reactiveValues(maxI = 10) # sel_c$maxI
   
   observe({
     td <- all
@@ -148,17 +150,21 @@ shinyServer(function(input, output, session) {
       #                        options = list(maxItems = 10),
       #                        selected = selectinfo)
       # }
-      
-      output$table1 <- renderTable({
-        aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
-                    Country_Region, tss,  max)},
-        striped = FALSE,
-        bordered = TRUE,
-        digits = 0,
-        caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
-        caption.placement = getOption("xtable.caption.placement", "top"),
-        caption.width = getOption("xtable.caption.width", NULL)
-      )
+      if (! is.null(input$show_c)) {    
+        
+        output$table1 <- renderTable({
+          aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
+                      Country_Region, tss,  FUN=tail,1)},
+          striped = FALSE,
+          bordered = TRUE,
+          digits = 0,
+          caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
+          caption.placement = getOption("xtable.caption.placement", "top"),
+          caption.width = getOption("xtable.caption.width", NULL)
+        )
+      } else {
+        output$table1 <- renderTable({})
+      }
       
       if (input$cases == ctype[1]) {
         
@@ -249,14 +255,18 @@ shinyServer(function(input, output, session) {
       hide("cases")
       show("startd")
       show("stopd")
-      if (compareNA(sel_c$maxI, 1)) {
-        updateSelectizeInput(session, "show_c", 
-                             options = list(maxItems = 10),
-                             selected = selectinfo)
-      }
+      # if (compareNA(sel_c$maxI, 1)) {
+      #   updateSelectizeInput(session, "show_c", 
+      #                        options = list(maxItems = 10),
+      #                        selected = selectinfo)
+      # }
       
       delay <- input$delay      
-      if (dim(tss)[1] > 0) {    
+      if (dim(tss)[1] > 0) {
+        
+        dateMax <- min(aggregate(Date ~ Country_Region, data = tss, max)$Date)
+        tss <- subset(tss, Date <= dateMax) # same max Date for all Countries
+        
         tss$DeathsRatio <- NA 
         tss$DeathsRatio[(delay + 1):length(tss$Date)] <-
           (tss$Deaths[(delay + 1):length(tss$Date)] /
@@ -275,8 +285,48 @@ shinyServer(function(input, output, session) {
           ggtitle(paste("Deaths / Confirmed Cases [%] (", 
                         as.character(max(tss$Date)), ")", sep = "")) +
           ylab("")
+        
+        dateDelay <- dateMax - delay
+        
+        dst <- subset(tss, 
+                      Date %in% c(dateDelay, dateMax), 
+                      select = c(Date, Country_Region, Deaths, Confirmed, DeathsRatio))
+        
+        dst$DeathsRatio[dst$Date == dateDelay] <- NA
+        dst$detRate <- input$ifr / dst$DeathsRatio
+
+        dst$Country_Region <- as.character(dst$Country_Region)
+        
+        for (i in unique(dst$Country_Region)) {
+          dst$detRate[dst$Country_Region == i] <- dst$detRate[(dst$Country_Region == i) &
+                                                                (! is.na(dst$detRate))]
+        }
+        dst <- subset(dst, select = -DeathsRatio)
+        dst$Estimated <- dst$Confirmed / dst$detRate
+        dst$SharePopulInfected <- dst$Estimated / (inh[dst$Country_Region] * 1000000) * 100 
+        dst$detRate <- dst$detRate * 100 # %
+
+        dst$Date <- format(dst$Date, "%d.%m.%Y")
+        dst$Estimated <- format(dst$Estimated, digits = 0, scientific = FALSE)
+        dst$Confirmed <- format(dst$Confirmed, digits = 0, scientific = FALSE)
+        dst$Deaths <- format(dst$Deaths, digits = 0, scientific = FALSE)
+        
+        names(dst)[names(dst) == "detRate"] <- "Detection Rate"
+        names(dst)[names(dst) == "SharePopulInfected"] <- "Share of Population Infected"
+        
+        output$table2 <- renderTable({dst},
+                                     striped = TRUE,
+                                     bordered = TRUE,
+                                     digits = 2,
+                                     align = "r",
+                                     caption = "<b> <span style='color:#000000'> 
+                                     Estimation of 'detection rate' and 'share of population infected' </b>",
+                                     caption.placement = getOption("xtable.caption.placement", "top"),
+                                     caption.width = getOption("xtable.caption.width", NULL)
+        )
       } else {
         p99 <- ggplot + theme_void()
+        output$table2 <- renderTable({})
       }
       
     } else if (input$tabs == "rki2") {
@@ -386,7 +436,7 @@ shinyServer(function(input, output, session) {
           rt_wt_df <- cbind(Date=tsss$Date[as.numeric(names(rt_wt$R))], 
                             R_hat=rt_wt$R, 
                             rt_wt$conf.int, 
-                            Method="W & T, GT=(4.7±2.9)")
+                            Method=paste0("W & T, GT=(", GT_data[1], "±", GT_data[2], ")"))
           
           rt_rki_df <- data.frame(Date=as.Date(names(rt_rki)),
                                   R_hat=rt_rki,
@@ -416,6 +466,21 @@ shinyServer(function(input, output, session) {
       hide("startd")
       hide("stopd")
       
+      output$link01 <- renderUI({
+        tagList("Datenquelle weltweit:", 
+                a("Johns Hopkins", 
+                  href="https://datahub.io/core/covid-19"))
+      })
+      output$link02 <- renderUI({
+        tagList("Datenquelle Deutschland:", 
+                a("RKI, bereitgestellt durch die Fa. ESRI", 
+                  href="https://npgeo-corona-npgeo-de.hub.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0"))
+      })
+      output$link03 <- renderUI({
+        tagList("Datenquelle Tessin:", 
+                a("SARS-CoV-2 Cases communicated by Swiss Cantons and Principality of Liechtenstein (FL)", 
+                  href="https://github.com/openZH/covid_19"))
+      })
       output$link1 <- renderUI({
         tagList("RKI:", 
                 a("Neuartiges Coronavirus in Deutschland", 
@@ -431,21 +496,46 @@ shinyServer(function(input, output, session) {
                 a("Übersicht Infektionen und Todesfälle in Baden-Württemberg", 
                   href="https://www.baden-wuerttemberg.de/de/service/presse/pressemitteilung/pid/uebersicht-infektionen-und-todesfaelle-in-baden-wuerttemberg/"))
       })
-      output$link4 <- renderUI({
-        tagList("UKF:", 
-                a("Situation in UKF und UHZ (nur mit Mitarbeiter-Kennung)", 
-                  href="https://portal1.uniklinik-freiburg.de/dana-na/auth/url_1/welcome.cgi"))
-      })
+      output$link4 <- renderUI({})
       output$link5 <- renderUI({
         tagList("BGA:", 
                 a("Neues Coronavirus: Situation Schweiz und International", 
                   href="https://www.bag.admin.ch/bag/de/home/krankheiten/ausbrueche-epidemien-pandemien/aktuelle-ausbrueche-epidemien/novel-cov/situation-schweiz-und-international.html"))
       })
+      output$link6 <- renderUI({
+        tagList("Situation weltweit, mit Angaben zu Test-Raten:", 
+                a("worldometer", 
+                  href="https://www.worldometers.info/coronavirus/"))
+        })
       output$link7 <- renderUI({
         tagList("Ticino:", 
                 a("Situation im Tessin", 
                   href="https://www4.ti.ch/dss/dsp/covid19/home/"))
       })
+      output$link8 <- renderUI({
+        tagList("Artikel:", 
+                a("Bommer & Vollmer (2020)", 
+                  href="http://www.uni-goettingen.de/en/606540.html"))
+      })
+      output$link9 <- renderUI({
+        tagList("Artikel:", 
+                a("Henrik Salje, Cécile Tran Kiem, Noémie Lefrancq, Noémie Courtejoie, Paolo Bosetti, et al.. Estimating
+the burden of SARS-CoV-2 in France. 2020. ffpasteur-02548181", 
+                  href="https://hal-pasteur.archives-ouvertes.fr/pasteur-02548181/document"))
+      })
+      output$link10 <- renderUI({
+        tagList("Artikel:", 
+                a("Effective reproduction number estimation with R0", 
+                  href="https://staff.math.su.se/hoehle/blog/2020/04/15/effectiveR0.html"))
+      })
+      output$link11 <- renderUI({
+        tagList("RKI, Epidemiologisches Bulletin 17/2020:", 
+                a("Schätzung der aktuellen Entwicklung der SARS-CoV-2-Epidemie in Deutschland - Nowcasting", 
+                  href="https://www.rki.de/DE/Content/Infekt/EpidBull/Archiv/2020/Ausgaben/17_20_SARS-CoV2_vorab.pdf?__blob=publicationFile"))})
+      output$link12 <- renderUI({tagList("D. Kriesel:", 
+                                         a("Corona-Plots und Interpretationshilfen, garantiert unaufgeregt", 
+                                           href="http://www.dkriesel.com/corona"))})
+      output$link13 <- renderUI({})
       
     }
     
@@ -476,7 +566,7 @@ shinyServer(function(input, output, session) {
     if (is.numeric(defl$x)) {
       paste0("Date = ", as_date(defl$x))
     } else {
-      "Click to select deflection point"
+      "Click in plot to split fit"
     }
   })
 }

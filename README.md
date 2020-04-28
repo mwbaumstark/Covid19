@@ -32,6 +32,8 @@ Upstream repository of Johns Hopkins data: https://github.com/CSSEGISandData/COV
 
 RKI data: https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.csv
 
+Swiss data: https://github.com/openZH/covid_19
+
 German population data: https://www.destatis.de/ Dataset 12411-0013.csv
 
 Reproduction number: 
@@ -42,3 +44,5 @@ https://staff.math.su.se/hoehle/blog/2020/04/15/effectiveR0.html
 R: https://cran.r-project.org/
 
 RStudio: https://rstudio.com/products/rstudio/
+
+More references, see 'Links...' Tab of the program.

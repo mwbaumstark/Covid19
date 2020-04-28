@@ -27,7 +27,7 @@ dashboardPage(
     ),
     
     selectizeInput("show_c", 
-                   "Select Countries/Region to show (including Bundesländer and Germany (RKI):", 
+                   "Select Countries/Region to show (see 'Other Data' 'Links...' for details):", 
                    choices = countries, 
                    selected = c("Germany", "Switzerland"),
                    multiple = TRUE),
@@ -50,12 +50,8 @@ dashboardPage(
     tabItems(
       tabItem(tabName = "wwd1",
               fluidRow(
-                box(width = 4, plotOutput('Plot1', click = "plot_click")),
-                box(width = 4, plotOutput('Plot2')),
-                box(width = 4, plotOutput('Plot3'))
-              ),
-              fluidRow(
                 column(width = 4,
+                       box(width = NULL, plotOutput('Plot1', click = "plot_click")),
                        radioButtons("yaxt", "y-axis:",
                                     choices = c("linear", "logarithmic"), 
                                     selected = "logarithmic", 
@@ -64,9 +60,21 @@ dashboardPage(
                        radioButtons("yafit", "Fit:",
                                     choices = c("exponential", "loess", "no fit"), 
                                     selected = "loess", 
-                                    inline = TRUE) 
+                                    inline = TRUE),
+                       # column(width = 9,
+                              verbatimTextOutput("info1"),
+                       # column(width = 3,
+                              actionButton("reset", "Reset"),
+ 
+                       tags$hr(style="border-color: black;"),
+                       print("'split fit' macht Sinn am Ende der exponentiellen Phase,
+                             um zwei unterschiedlich steile Fits zu erhalten."),
+                       br(),
+                       print("Dazu als Fit links 'exponential' und in der Mitte 'constant'
+                             auswählen.")
                 ),
                 column(width = 4,
+                       box(width = NULL, plotOutput('Plot2')),
                        radioButtons("show_2", "Show:",
                                     choices = c("Doubling period", "Daily rate of increase"), 
                                     selected = "Daily rate of increase", 
@@ -77,14 +85,10 @@ dashboardPage(
                                     inline = TRUE)
                 ),
                 column(width = 4,
-                       tableOutput('table1')                )
-              ) ,
-              fluidRow(
-                column(width = 3,
-                       verbatimTextOutput("info1")),
-                column(width = 1,
-                       actionButton("reset", "Reset"))
-              )
+                       box(width = NULL, plotOutput('Plot3')),
+                       tableOutput('table1')
+                ),
+              ),
       ),
       tabItem(tabName = "wwd5",
               fluidRow(
@@ -112,7 +116,7 @@ dashboardPage(
               ),
               fluidRow(
                 column(width = 4,
-                       sliderInput("delay", "Deaths per Cases(N days ago)", min = 0, max = 30, value = 14 ),
+                       sliderInput("delay", "Deaths per Cases(N days ago)", min = 1, max = 30, value = 14 ),
                        sliderInput("ifr", 
                                    "Assumed true infection fatality rate", 
                                    min = 0.2, max = 1.7, value = 0.5, step = 0.01)
@@ -139,7 +143,9 @@ dashboardPage(
                                     Zum Vergleich wird die effektive Reproduktionszahl auch mit der
                                     Methode von Wallinga and Teunis (2004) berechnet. Siehe:  
                                     [Effective reproduction number estimation with R0]"
-                       )
+                       ),
+                       br(),
+                       print("Gegen Ende des Zeitraums 'heute' sind die Werte ungenauer. Abwarten...")
                 )
               )
       ),
@@ -162,6 +168,9 @@ dashboardPage(
       tabItem(tabName = "links",
               fluidRow(
                 column(width = 4,
+                       uiOutput("link01"),
+                       uiOutput("link02"),
+                       uiOutput("link03"),
                        uiOutput("link1"),
                        uiOutput("link2"),
                        uiOutput("link3"),
@@ -177,7 +186,11 @@ dashboardPage(
                        uiOutput("link13"),
                        
                        tags$hr(style="border-color: black;"),
-                       print("")
+                       print("Verfügbare Länder/Regionen sind alle Länder die im Johns Hopkins 
+                             Datensatz enthalten sind, alle Bundesländer aus dem RKI Datensatz und 
+                             Deutschland aus dem RKI Datensatz 'Germany (RKI)'. Als kleinere Einheiten: 
+                             'Tessin', 'LK Breisgau-Hochschwarzwald' und 'SK Freiburg i.Breisgau'. 
+                             Die 'Recovered' Zahlen werden wie bei [D. Kriesel] beschrieben korrigiert.")
                 )
               )
       )

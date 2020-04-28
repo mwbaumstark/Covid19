@@ -210,6 +210,18 @@ Tis$Rate_Deaths <- (Tis$Delta_Deaths / Tis$Deaths) * 100
 #### Total data set 
 all <- bind_rows(tm, rkia, rkig, rki_lk, Tis) 
 
+all <- all[order(all$Country_Region, all$Date),]
+
+# Recovered Korrektur nach D. Kriesel
+all$Rec_corr <- lag(all$Confirmed, 18) - all$Death - all$Recovered
+all$Rec_corr[all$Country_Region != lag(all$Country_Region, 18, default = 0)] <- 0
+all$Rec_corr[all$Rec_corr < 0] <- 0
+all$Recovered <- all$Recovered + all$Rec_corr
+
+# summary(all$Rec_corr)
+
+all <- subset(all, select = -Rec_corr) 
+
 #### countries with N of confirmed cases > c_limit
 c_limit <- 0
 tmc <- as.data.frame(unique(subset(bind_rows(tm, Tis), 

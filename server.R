@@ -466,6 +466,21 @@ shinyServer(function(input, output, session) {
       hide("startd")
       hide("stopd")
       
+      output$link01 <- renderUI({
+        tagList("Datenquelle weltweit:", 
+                a("Johns Hopkins", 
+                  href="https://datahub.io/core/covid-19"))
+      })
+      output$link02 <- renderUI({
+        tagList("Datenquelle Deutschland:", 
+                a("RKI, bereitgestellt durch die Fa. ESRI", 
+                  href="https://npgeo-corona-npgeo-de.hub.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0"))
+      })
+      output$link03 <- renderUI({
+        tagList("Datenquelle Tessin:", 
+                a("SARS-CoV-2 Cases communicated by Swiss Cantons and Principality of Liechtenstein (FL)", 
+                  href="https://github.com/openZH/covid_19"))
+      })
       output$link1 <- renderUI({
         tagList("RKI:", 
                 a("Neuartiges Coronavirus in Deutschland", 
@@ -481,11 +496,7 @@ shinyServer(function(input, output, session) {
                 a("Übersicht Infektionen und Todesfälle in Baden-Württemberg", 
                   href="https://www.baden-wuerttemberg.de/de/service/presse/pressemitteilung/pid/uebersicht-infektionen-und-todesfaelle-in-baden-wuerttemberg/"))
       })
-      output$link4 <- renderUI({
-        tagList("UKF:", 
-                a("Situation in UKF und UHZ (nur mit Mitarbeiter-Kennung)", 
-                  href="https://portal1.uniklinik-freiburg.de/dana-na/auth/url_1/welcome.cgi"))
-      })
+      output$link4 <- renderUI({})
       output$link5 <- renderUI({
         tagList("BGA:", 
                 a("Neues Coronavirus: Situation Schweiz und International", 
@@ -521,7 +532,9 @@ the burden of SARS-CoV-2 in France. 2020. ffpasteur-02548181",
         tagList("RKI, Epidemiologisches Bulletin 17/2020:", 
                 a("Schätzung der aktuellen Entwicklung der SARS-CoV-2-Epidemie in Deutschland - Nowcasting", 
                   href="https://www.rki.de/DE/Content/Infekt/EpidBull/Archiv/2020/Ausgaben/17_20_SARS-CoV2_vorab.pdf?__blob=publicationFile"))})
-      output$link12 <- renderUI({})
+      output$link12 <- renderUI({tagList("D. Kriesel:", 
+                                         a("Corona-Plots und Interpretationshilfen, garantiert unaufgeregt", 
+                                           href="http://www.dkriesel.com/corona"))})
       output$link13 <- renderUI({})
       
     }

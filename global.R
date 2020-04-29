@@ -5,6 +5,7 @@ library(lubridate)
 library(reshape2)
 library(ggplot2)
 library(dplyr)
+library(curl)
 
 # compare with NAs
 compareNA <- function(v1,v2) {
@@ -54,11 +55,26 @@ ctype <- c("Confirmed Cases" ,
            "Active Cases" 
 )
 
+warn_msg <- array(data = "")
+# warn_msg[length(warn_msg) + 1] <- "***RKI Data truncated***"
+# warn_msg[length(warn_msg) + 1] <- "***Layout of RKI Data changed***"
+
 # Johns Hopkins Master Repository #############################
 # from datahub.io (more simple repository)
 
 tm_data <- "https://datahub.io/core/covid-19/r/time-series-19-covid-combined.csv"
-tm_raw <- read_csv(url(tm_data))
+
+if (exists("tm_raw")) rm("tm_raw")
+
+try(tm_raw <- read_csv(url(tm_data)), silent = TRUE)
+
+if (exists("tm_raw")) {
+  save(tm_raw, file = "tm_raw.Rdata")
+  warn_msg[length(warn_msg) + 1] <- "* J. Hopkins data ok *" 
+} else {
+  warn_msg[length(warn_msg) + 1] <- "* J. Hopkins down. Use cached data *" 
+  load("tm_raw.Rdata")
+}
 
 tm <- aggregate(cbind(Confirmed, Deaths, Recovered) ~ Date + `Country/Region`, tm_raw, sum)
 
@@ -85,11 +101,37 @@ tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
 
 #### RKI Data #### URL may change !!!
 rki_data <- "https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.csv"
-rki_full <- read_delim(rki_data, ",")
+# rki_data <- "https://www.arcgis.com/sharing/rest/content/items/f10774f1c63e40168479a1feb6c7ca74/data"
+# rki_data <- "RKI_COVID19.csv"
+# rki_data <- ""
+# https://www.arcgis.com/home/item.html?id=f10774f1c63e40168479a1feb6c7ca74
+
+if (exists("rki_full")) rm("rki_full")
+
+try(rki_full <- read_delim(rki_data, ","), silent = TRUE)
+load("dim_rki_full.Rdata")
+if (exists("rki_full")) {
+  dim_rki <- dim(rki_full)
+  load("dim_rki_full.Rdata")
+  if ((dim_rki[1] >= dim_rki_save[1]) & (dim_rki[2] == dim_rki_save[2])) {
+    dim_rki_save <- dim(rki_full)
+    save(dim_rki_save, file = "dim_rki_full.Rdata")
+    save(rki_full, file = "rki_full.Rdata")
+    warn_msg[length(warn_msg) + 1] <- "* RKI data ok *" 
+  } else {
+    if (dim_rki[1] <= dim_rki_save[1]) warn_msg[length(warn_msg) + 1] <- "***RKI Data truncated***"
+    if (dim_rki[2] != dim_rki_save[2]) warn_msg[length(warn_msg) + 1] <- "***Layout of RKI Data changed***"
+    warn_msg[length(warn_msg) + 1] <- "* Cached data used *" 
+    load("rki_full.Rdata")
+  } 
+} else {
+  load("rki_full.Rdata")
+  warn_msg[length(warn_msg) + 1] <- "* RKI down. Cached data used *" 
+}
 
 rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
-rki_full$Meldedatum <- ymd(rki_full$Meldedatum) # convert to date
-rki_full$Refdatum <- ymd(rki_full$Refdatum) # convert to date
+rki_full$Meldedatum <- ymd(substr(rki_full$Meldedatum, 1, 10)) # convert to date
+rki_full$Refdatum <- ymd(substr(rki_full$Refdatum, 1, 10)) # convert to date
 
 names(rki_full)[names(rki_full) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki_full)[names(rki_full) == "AnzahlTodesfall"] <- "Delta_Deaths" 
@@ -107,9 +149,6 @@ rki_full$Date <- rki_full$Meldedatum
 rki_full$Delta_Active <- rki_full$Delta_Confirmed - rki_full$Delta_Deaths - rki_full$Delta_Recovered # correct?
 
 rki_Datenstand <- max(rki_full$Datenstand)
-
-# rki <- subset(rki_full, select = -c(IdBundesland, Landkreis, ObjectId, IdLandkreis, NeuerFall,
-#                                     NeuerTodesfall, Datenstand, NeuGenesen))
 
 #### RKI Bundesländer
 rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, 
@@ -169,10 +208,26 @@ rki_lk$Rate_Confirmed <- (rki_lk$Delta_Confirmed / rki_lk$Confirmed) * 100
 rki_lk$Rate_Deaths <- (rki_lk$Delta_Deaths / rki_lk$Deaths) * 100
 
 #### Tessin
-ch <- read_csv("https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv", 
-               col_types = cols(date = col_date(format = "%Y-%m-%d"), 
-                                time = col_character()))
+if (exists("ch")) rm("ch")
 
+if (compareLE((Sys.time() - file.info("ch.Rdata")$ctime),  6)) {
+  load("ch.Rdata")  
+} else {
+  
+  try(
+    ch <- read_csv("https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv", 
+                   col_types = cols(date = col_date(format = "%Y-%m-%d"), 
+                                    time = col_character()))
+    , silent = TRUE)
+  
+  if (exists("ch")) {
+    save(ch, file = "ch.Rdata")
+    warn_msg[length(warn_msg) + 1] <- "* openZH data ok *" 
+  } else {
+    load("ch.Rdata")
+    warn_msg[length(warn_msg) + 1] <- "* openZH down. Cached data used *" 
+  }
+}
 
 Ti <- subset(ch, 
              (abbreviation_canton_and_fl == "TI") &
@@ -244,6 +299,8 @@ inh <- c(g_inh, rki_inh)
 
 closeAllConnections()
 
+lw <- length(warn_msg)
+
 #### Infos
 # https://stats.idre.ucla.edu/r/faq/how-can-i-explore-different-smooths-in-ggplot2/
 
@@ -262,4 +319,3 @@ closeAllConnections()
 #R0
 # https://bmcmedinformdecismak.biomedcentral.com/articles/10.1186/1472-6947-12-147
 
-# save(rkig, file = "../Test/rki.Rdata")

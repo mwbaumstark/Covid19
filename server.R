@@ -152,9 +152,11 @@ shinyServer(function(input, output, session) {
       # }
       if (! is.null(input$show_c)) {    
         
-        output$table1 <- renderTable({
-          aggregate(cbind(Confirmed, Deaths, Recovered, Active) ~ 
-                      Country_Region, tss,  FUN=tail,1)},
+        tabd <- aggregate(cbind(Confirmed, Deaths, Recovered, Active, format(Date)) ~
+                    Country_Region, tss,  FUN=tail,1)
+        names(tabd)[6] <- "Date"
+
+          output$table1 <- renderTable({tabd},
           striped = FALSE,
           bordered = TRUE,
           digits = 0,

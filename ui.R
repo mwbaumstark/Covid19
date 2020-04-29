@@ -23,7 +23,6 @@ dashboardPage(
                menuSubItem("RKI, Altersverteilung", tabName = "rki2"),
                menuSubItem("Links, Data and Papers", tabName = "links")
       )
-      
     ),
     
     selectizeInput("show_c", 
@@ -42,6 +41,20 @@ dashboardPage(
     dateInput("stopd", "To Date:", value = max_date, min = min_date, max = max_date,
               format = "yyyy-mm-dd", startview = "month", weekstart = 0,
               language = "en", width = NULL),
+    tags$hr(style="border-color: white;"),
+    #    for (i in 2:length(warn_msg)) { # does not work for me
+
+        if (lw >=2) print(warn_msg[2]),
+    if (lw >=2) br(),
+    if (lw >=3) print(warn_msg[3]),
+    if (lw >=3) br(),
+    if (lw >=4) print(warn_msg[4]),
+    if (lw >=4) br(),
+    if (lw >=5) print(warn_msg[5]),
+    if (lw >=5) br(),
+    if (lw >=6) print(warn_msg[6]),
+
+    #    },
     
     collapsed = FALSE  
   ),
@@ -62,10 +75,10 @@ dashboardPage(
                                     selected = "loess", 
                                     inline = TRUE),
                        # column(width = 9,
-                              verbatimTextOutput("info1"),
+                       verbatimTextOutput("info1"),
                        # column(width = 3,
-                              actionButton("reset", "Reset"),
- 
+                       actionButton("reset", "Reset"),
+                       
                        tags$hr(style="border-color: black;"),
                        print("'split fit' macht Sinn am Ende der exponentiellen Phase,
                              um zwei unterschiedlich steile Fits zu erhalten."),

@@ -338,12 +338,12 @@ shinyServer(function(input, output, session) {
         if (input$rki_show_c == "Germany (RKI)") {
           rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
                                Sex + Altersgruppe
-                             , rki_full, sum)
+                             , rki, sum)
           rkigg$Country_Region <- "Germany (RKI)"
         } else {
           rkigg <- aggregate(cbind(Delta_Deaths, Delta_Confirmed, Delta_Recovered, Delta_Active) ~ 
                                Sex + Altersgruppe
-                             , subset(rki_full, (Country_Region == input$rki_show_c)), sum)
+                             , subset(rki, (Country_Region == input$rki_show_c)), sum)
           rkigg$Country_Region <- input$rki_show_c
         } 
         

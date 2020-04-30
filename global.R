@@ -171,24 +171,39 @@ if (exists("rki_full")) {
 }
 
 rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
-rki_full$Meldedatum <- ymd(substr(rki_full$Meldedatum, 1, 10)) # convert to date
-rki_full$Refdatum <- ymd(substr(rki_full$Refdatum, 1, 10)) # convert to date
+rki_full$Meldedatum <- ymd(substr(rki_full$Meldedatum, 1, 10)) 
+rki_full$Refdatum <- ymd(substr(rki_full$Refdatum, 1, 10)) 
 
 names(rki_full)[names(rki_full) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki_full)[names(rki_full) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-# names(rki_full)[names(rki_full) == "Refdatum"] <- "Date"  # should this be used??
-# names(rki_full)[names(rki_full) == "Meldedatum"] <- "Date"  
 names(rki_full)[names(rki_full) == "Bundesland"] <- "Country_Region"
 names(rki_full)[names(rki_full) == "AnzahlGenesen"] <- "Delta_Recovered"
 names(rki_full)[names(rki_full) == "Geschlecht"] <- "Sex" 
 rki_full$Sex[rki_full$Sex == "W"] <- "F"
 rki_full$Sex[rki_full$Sex == "unbekannt"] <- "U"
 
-rki_full$ddate <- rki_full$Meldedatum - rki_full$Refdatum
-rki_full$Date <- rki_full$Meldedatum
-# rki_full$Date <- rki_full$Refdatum
+rkia1 <- aggregate(cbind(Delta_Deaths, Delta_Recovered) ~ 
+                     Meldedatum + Country_Region + Landkreis + Sex + Altersgruppe, 
+                           rki_full, sum)
 
-rki_full$Delta_Active <- rki_full$Delta_Confirmed - rki_full$Delta_Deaths - rki_full$Delta_Recovered # correct?
+  
+
+rkia2 <- aggregate(Delta_Confirmed ~ 
+                     Refdatum + Country_Region + Landkreis + Sex + Altersgruppe, 
+                   rki_full, sum)
+
+names(rkia1)[names(rkia1) == "Meldedatum"] <- "Date"
+names(rkia2)[names(rkia2) == "Refdatum"] <- "Date"
+
+rki <- merge(rkia1, rkia2, 
+             by = c("Country_Region", "Landkreis", "Date", "Altersgruppe", "Sex"), all = TRUE)
+
+rki$Delta_Confirmed[is.na(rki$Delta_Confirmed)] <- 0
+rki$Delta_Deaths[is.na(rki$Delta_Deaths)] <- 0
+rki$Delta_Recovered[is.na(rki$Delta_Recovered)] <- 0
+
+
+rki$Delta_Active <- rki$Delta_Confirmed - rki$Delta_Deaths - rki$Delta_Recovered # for rkigg
 
 # if (unique(rki_full$Altersgruppe2)[1] != "nicht übermittelt") { # geht nicht ohne weiteres dynamisch
 #   rki_full$Altersgruppe <- rki_full$Altersgruppe2
@@ -198,7 +213,7 @@ rki_Datenstand <- max(rki_full$Datenstand)
 
 #### RKI Bundesländer
 rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, 
-                  rki_full, sum)
+                  rki, sum)
 
 rkia$Confirmed <- delta2cum(rkia, "Delta_Confirmed")
 rkia$Deaths <- delta2cum(rkia, "Delta_Deaths")
@@ -236,7 +251,7 @@ sel_lk <- c("SK Freiburg i.Breisgau", "LK Breisgau-Hochschwarzwald")
 
 rki_lk <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ 
                       Date + Landkreis, 
-                    subset(rki_full, Landkreis %in% sel_lk), 
+                    subset(rki, Landkreis %in% sel_lk), 
                     sum)
 
 names(rki_lk)[2] <- "Country_Region"
@@ -309,14 +324,12 @@ all <- bind_rows(tm, rkia, rkig, rki_lk, Tis)
 all <- all[order(all$Country_Region, all$Date),]
 
 # Recovered Korrektur nach D. Kriesel
-all$Rec_corr <- lag(all$Confirmed, 18) - all$Death - all$Recovered
-all$Rec_corr[all$Country_Region != lag(all$Country_Region, 18, default = 0)] <- 0
-all$Rec_corr[all$Rec_corr < 0] <- 0
-all$Recovered <- all$Recovered + all$Rec_corr
-
-# summary(all$Rec_corr)
-
-all <- subset(all, select = -Rec_corr) 
+# all$Rec_corr <- lag(all$Confirmed, 18) - all$Death - all$Recovered
+# all$Rec_corr[all$Country_Region != lag(all$Country_Region, 18, default = 0)] <- 0
+# all$Rec_corr[all$Rec_corr < 0] <- 0
+# all$Recovered <- all$Recovered + all$Rec_corr
+# # summary(all$Rec_corr)
+# all <- subset(all, select = -Rec_corr) 
 
 #### countries with N of confirmed cases > c_limit
 c_limit <- 0

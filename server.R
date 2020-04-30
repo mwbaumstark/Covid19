@@ -39,7 +39,7 @@ mk_plot1 <- function(tss, col, titel, normalize, ylog, yafit, inh) {
     p1 <- ggplot(tss, aes(x = Date, y = y, color = Country_Region)) +
       geom_point() +
       ylab("") +
-      ggtitle(paste(titel, max(tss$Date), ")", sep = "")) +
+      ggtitle(titel) +
       theme(legend.position = "none")
     if (yafit == "no fit") {
       p1 <- p1 + geom_line()
@@ -81,7 +81,7 @@ mk_plot2 <- function(tss, col, fit, show) {
       geom_point() +
       ylimits +
       ylab("") +
-      ggtitle(paste(titel , " (", max(tss$Date), ")", sep = ""))+
+      ggtitle(titel)+
       theme(legend.position = "none")
     if (fit == "constant") {
       p1 <- p1 + geom_smooth(aes(group = paste(vc, Country_Region), fill = Country_Region), 
@@ -109,7 +109,7 @@ mk_plot3 <- function(tss, col, titel, normalize, inh) {
     p1 <- ggplot(tss, aes(x = Date, y = y, fill = Country_Region, color = Country_Region)) +
       geom_bar(position="dodge", stat = "identity") +
       ylab("") +
-      ggtitle(paste(titel, max(tss$Date), ")", sep = ""))
+      ggtitle(titel)
   } else {
     p1 <- ggplot + theme_void()
   }
@@ -152,12 +152,12 @@ shinyServer(function(input, output, session) {
       # }
       if (! is.null(input$show_c)) {    
         
-        tabd <- aggregate(cbind(Confirmed, Deaths, Recovered, Active, format(Date)) ~
+        tabd <- aggregate(cbind(Confirmed, Deaths, Recovered, Active, format(Date, "%d.%m.%Y")) ~
                             Country_Region, tss,  FUN=tail,1)
         names(tabd)[6] <- "Date"
         
         output$table1 <- renderTable({tabd},
-                                     striped = FALSE,
+                                     striped = TRUE,
                                      bordered = TRUE,
                                      digits = 0,
                                      caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
@@ -171,7 +171,7 @@ shinyServer(function(input, output, session) {
       if (input$cases == ctype[1]) {
         
         p1 <- mk_plot1(tss, "Confirmed", 
-                       "Confirmed Cases (", 
+                       "Confirmed Cases", 
                        input$normalize == TRUE,
                        input$yaxt == "logarithmic",
                        input$yafit,
@@ -184,14 +184,14 @@ shinyServer(function(input, output, session) {
         )
         
         p3 <- mk_plot3(tss, "Delta_Confirmed", 
-                       "Daily delta, Confirmed Cases (", 
+                       "Daily delta", 
                        input$normalize == TRUE,
                        inh
         )
         
       } else if (input$cases == ctype[2]) {
         
-        p1 <- mk_plot1(tss, "Deaths", "Deaths (", 
+        p1 <- mk_plot1(tss, "Deaths", "Deaths", 
                        input$normalize == TRUE,
                        input$yaxt == "logarithmic",
                        input$yafit,
@@ -204,14 +204,14 @@ shinyServer(function(input, output, session) {
         )
         
         p3 <- mk_plot3(tss, "Delta_Deaths", 
-                       "Daily delta, Deaths (", 
+                       "Daily delta", 
                        input$normalize == TRUE,
                        inh
         )
         
       } else if (input$cases == ctype[3]) { 
         
-        p1 <- mk_plot1(tss, "Recovered", "Recovered Cases (", 
+        p1 <- mk_plot1(tss, "Recovered", "Recovered Cases", 
                        input$normalize == TRUE,
                        input$yaxt == "logarithmic",
                        input$yafit,
@@ -224,14 +224,14 @@ shinyServer(function(input, output, session) {
         )
         
         p3 <- mk_plot3(tss, "Delta_Recovered", 
-                       "Daily delta, Recovered Cases (", 
+                       "Daily delta", 
                        input$normalize == TRUE,
                        inh
         )
         
       } else if (input$cases == ctype[4]) {
         
-        p1 <- mk_plot1(tss, "Active", "Active Cases (", 
+        p1 <- mk_plot1(tss, "Active", "Active Cases", 
                        input$normalize == TRUE,
                        input$yaxt == "logarithmic",
                        input$yafit,
@@ -244,7 +244,7 @@ shinyServer(function(input, output, session) {
         )
         
         p3 <- mk_plot3(tss, "Delta_Active", 
-                       "Daily delta, Active Cases (", 
+                       "Daily delta", 
                        input$normalize == TRUE,
                        inh
         )
@@ -257,12 +257,7 @@ shinyServer(function(input, output, session) {
       hide("cases")
       show("startd")
       show("stopd")
-      # if (compareNA(sel_c$maxI, 1)) {
-      #   updateSelectizeInput(session, "show_c", 
-      #                        options = list(maxItems = 10),
-      #                        selected = selectinfo)
-      # }
-      
+
       delay <- input$delay      
       if (dim(tss)[1] > 0) {
         
@@ -284,8 +279,7 @@ shinyServer(function(input, output, session) {
           geom_smooth(method = "loess",
                       alpha = .15,
                       aes(fill = Country_Region)) +
-          ggtitle(paste("Deaths / Confirmed Cases [%] (", 
-                        as.character(max(tss$Date)), ")", sep = "")) +
+          ggtitle("Deaths / Confirmed Cases [%]") +
           ylab("")
         
         dateDelay <- dateMax - delay
@@ -313,8 +307,8 @@ shinyServer(function(input, output, session) {
         dst$Confirmed <- format(dst$Confirmed, digits = 0, scientific = FALSE)
         dst$Deaths <- format(dst$Deaths, digits = 0, scientific = FALSE)
         
-        names(dst)[names(dst) == "detRate"] <- "Detection Rate"
-        names(dst)[names(dst) == "SharePopulInfected"] <- "Share of Population Infected"
+        names(dst)[names(dst) == "detRate"] <- "Detection Rate [%]"
+        names(dst)[names(dst) == "SharePopulInfected"] <- "Share of Population Infected [%]"
         
         output$table2 <- renderTable({dst},
                                      striped = TRUE,
@@ -420,11 +414,56 @@ shinyServer(function(input, output, session) {
                   axis.text=element_blank(),
                   axis.ticks=element_blank()
             )
+          rkigg$CFR <- ""
         }
+        
+        dft3 <- subset(rkigg, select = c(Altersgruppe, Sex, y, yn, CFR, Population),
+                       (Altersgruppe != "unbekannt") & (Sex == "M"))
+
+        dft3$Population <- dft3$Population * 1000000
+        
+        names(dft3)[names(dft3) == "y"] <- "Faelle"
+        names(dft3)[names(dft3) == "yn"] <- "F./Mio."
+        names(dft3)[names(dft3) == "CFR"] <- "F./Pos."
+        names(dft3)[names(dft3) == "Altersgruppe"] <- "Alter"
+        names(dft3)[names(dft3) == "Sex"] <- "Geschl."
+
+        output$table3 <- renderTable({dft3},
+                                     striped = TRUE,
+                                     bordered = TRUE,
+                                     digits = 0,
+                                     align = "r",
+                                   #  caption = "<b> <span style='color:#000000'> ### </b>",
+                                     caption.placement = getOption("xtable.caption.placement", "top"),
+                                     caption.width = getOption("xtable.caption.width", NULL)
+        )
+        
+        dft4 <- subset(rkigg, select = c(Altersgruppe, Sex, y, yn, CFR, Population),
+                       (Altersgruppe != "unbekannt") & (Sex == "F"))
+        
+        dft4$Population <- dft4$Population * 1000000
+        
+        names(dft4)[names(dft4) == "y"] <- "Fälle"
+        names(dft4)[names(dft4) == "yn"] <- "F./Mio."
+        names(dft4)[names(dft4) == "CFR"] <- "F./Pos."
+        names(dft4)[names(dft4) == "Altersgruppe"] <- "Alter"
+        names(dft4)[names(dft4) == "Sex"] <- "Geschl."
+        
+        output$table4 <- renderTable({dft4},
+                                     striped = TRUE,
+                                     bordered = TRUE,
+                                     digits = 0,
+                                     align = "r",
+                                     #  caption = "<b> <span style='color:#000000'> ### </b>",
+                                     caption.placement = getOption("xtable.caption.placement", "top"),
+                                     caption.width = getOption("xtable.caption.width", NULL)
+        )
+        
       } else {
         prki1 <- ggplot + theme_void()
         prki2 <- ggplot + theme_void()
         prki3 <- ggplot + theme_void()
+        output$table3 <- renderTable({})
       } 
     } else if (input$tabs == "wwd4") {
       

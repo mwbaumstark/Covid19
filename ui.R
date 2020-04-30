@@ -19,7 +19,7 @@ dashboardPage(
                startExpanded = FALSE,
                
                menuSubItem("Eff. reproduction number", tabName = "wwd4"),
-               menuSubItem("Deaths / Confirmed Case", tabName = "wwd5"),
+               menuSubItem("CRF, % Detected, % Infected", tabName = "wwd5"),
                menuSubItem("RKI, Altersverteilung", tabName = "rki2"),
                menuSubItem("Links, Data and Papers", tabName = "links")
       )
@@ -43,8 +43,8 @@ dashboardPage(
               language = "en", width = NULL),
     tags$hr(style="border-color: white;"),
     #    for (i in 2:length(warn_msg)) { # does not work for me
-
-        if (lw >=2) print(warn_msg[2]),
+    
+    if (lw >=2) print(warn_msg[2]),
     if (lw >=2) br(),
     if (lw >=3) print(warn_msg[3]),
     if (lw >=3) br(),
@@ -53,7 +53,7 @@ dashboardPage(
     if (lw >=5) print(warn_msg[5]),
     if (lw >=5) br(),
     if (lw >=6) print(warn_msg[6]),
-
+    
     #    },
     
     collapsed = FALSE  
@@ -74,9 +74,7 @@ dashboardPage(
                                     choices = c("exponential", "loess", "no fit"), 
                                     selected = "loess", 
                                     inline = TRUE),
-                       # column(width = 9,
                        verbatimTextOutput("info1"),
-                       # column(width = 3,
                        actionButton("reset", "Reset"),
                        
                        tags$hr(style="border-color: black;"),
@@ -175,7 +173,10 @@ dashboardPage(
                                       "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries_noLk, 
                                       selected = c("Germany (RKI)"),
                                       multiple = FALSE)
-                )
+                ),
+                column(width = 4, tableOutput('table3')),
+                column(width = 4, tableOutput('table4'))
+                       
               )
       ), 
       tabItem(tabName = "links",

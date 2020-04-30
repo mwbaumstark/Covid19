@@ -60,25 +60,66 @@ warn_msg <- array(data = "")
 # warn_msg[length(warn_msg) + 1] <- "***Layout of RKI Data changed***"
 
 # Johns Hopkins Master Repository #############################
-# from datahub.io (more simple repository)
 
-tm_data <- "https://datahub.io/core/covid-19/r/time-series-19-covid-combined.csv"
+# Original repo #############################
+confirmed_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv"
+confirmed <- read_csv(confirmed_data)
 
-if (exists("tm_raw")) rm("tm_raw")
+cm <- melt(confirmed, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ),
+           value.name = "Confirmed", variable.name = "Date")
+names(cm)[2] <- "Country_Region"
+cm <- subset(cm, select = c("Country_Region", "Date", "Confirmed") )
+cm <- aggregate(Confirmed ~ Country_Region + Date, cm, sum)
+cm$Date <-  mdy(cm$Date)
 
-try(tm_raw <- read_csv(url(tm_data)), silent = TRUE)
 
-if (exists("tm_raw")) {
-  save(tm_raw, file = "tm_raw.Rdata")
-  warn_msg[length(warn_msg) + 1] <- "* J. Hopkins data ok *" 
-} else {
-  warn_msg[length(warn_msg) + 1] <- "* J. Hopkins down. Use cached data *" 
-  load("tm_raw.Rdata")
-}
+deaths_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv"
+deaths <- read_csv(deaths_data)
 
-tm <- aggregate(cbind(Confirmed, Deaths, Recovered) ~ Date + `Country/Region`, tm_raw, sum)
+dm <- melt(deaths, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ),
+           value.name = "Deaths", variable.name = "Date")
+names(dm)[2] <- "Country_Region"
+dm <- subset(dm, select = c("Country_Region", "Date", "Deaths") )
+dm <- aggregate(Deaths ~ Country_Region + Date, dm, sum)
+dm$Date <-  mdy(dm$Date)
 
-names(tm)[2] <- "Country_Region"
+
+recovered_data <- "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_recovered_global.csv"
+recovered <- read_csv(recovered_data)
+
+rm <- melt(recovered, id.vars = c("Province/State", "Country/Region", "Lat", "Long" ),
+           value.name = "Recovered", variable.name = "Date")
+names(rm)[2] <- "Country_Region"
+rm <- subset(rm, select = c("Country_Region", "Date", "Recovered") )
+rm <- aggregate(Recovered ~ Country_Region + Date, rm, sum)
+rm$Date <-  mdy(rm$Date)
+
+tmp <- merge(cm, dm, by= c("Country_Region", "Date"), all = TRUE)
+tm <- merge(tmp, rm, by= c("Country_Region", "Date"), all = TRUE)
+
+
+
+# # from datahub.io (more simple repository) #### 2020-04-30: not up to date
+# 
+# tm_data <- "https://datahub.io/core/covid-19/r/time-series-19-covid-combined.csv"
+# 
+# if (exists("tm_raw")) rm("tm_raw")
+# 
+# try(tm_raw <- read_csv(url(tm_data)), silent = TRUE)
+# 
+# if (exists("tm_raw")) {
+#   save(tm_raw, file = "tm_raw.Rdata")
+#   warn_msg[length(warn_msg) + 1] <- "* J. Hopkins data ok *" 
+# } else {
+#   warn_msg[length(warn_msg) + 1] <- "* J. Hopkins down. Use cached data *" 
+#   load("tm_raw.Rdata")
+# }
+
+# tm <- aggregate(cbind(Confirmed, Deaths, Recovered) ~ Date + `Country/Region`, tm_raw, sum)
+# 
+# names(tm)[2] <- "Country_Region"
+
+######### 
 
 tm$Active <- tm$Confirmed - tm$Deaths -tm$Recovered
 
@@ -145,8 +186,13 @@ rki_full$Sex[rki_full$Sex == "unbekannt"] <- "U"
 
 rki_full$ddate <- rki_full$Meldedatum - rki_full$Refdatum
 rki_full$Date <- rki_full$Meldedatum
+# rki_full$Date <- rki_full$Refdatum
 
 rki_full$Delta_Active <- rki_full$Delta_Confirmed - rki_full$Delta_Deaths - rki_full$Delta_Recovered # correct?
+
+# if (unique(rki_full$Altersgruppe2)[1] != "nicht übermittelt") { # geht nicht ohne weiteres dynamisch
+#   rki_full$Altersgruppe <- rki_full$Altersgruppe2
+# }
 
 rki_Datenstand <- max(rki_full$Datenstand)
 
@@ -210,23 +256,18 @@ rki_lk$Rate_Deaths <- (rki_lk$Delta_Deaths / rki_lk$Deaths) * 100
 #### Tessin
 if (exists("ch")) rm("ch")
 
-if (compareLE((Sys.time() - file.info("ch.Rdata")$ctime),  6)) {
-  load("ch.Rdata")  
+try(
+  ch <- read_csv("https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv", 
+                 col_types = cols(date = col_date(format = "%Y-%m-%d"), 
+                                  time = col_character()))
+  , silent = TRUE)
+
+if (exists("ch")) {
+  save(ch, file = "ch.Rdata")
+  warn_msg[length(warn_msg) + 1] <- "* openZH data ok *" 
 } else {
-  
-  try(
-    ch <- read_csv("https://raw.githubusercontent.com/openZH/covid_19/master/COVID19_Fallzahlen_CH_total_v2.csv", 
-                   col_types = cols(date = col_date(format = "%Y-%m-%d"), 
-                                    time = col_character()))
-    , silent = TRUE)
-  
-  if (exists("ch")) {
-    save(ch, file = "ch.Rdata")
-    warn_msg[length(warn_msg) + 1] <- "* openZH data ok *" 
-  } else {
-    load("ch.Rdata")
-    warn_msg[length(warn_msg) + 1] <- "* openZH down. Cached data used *" 
-  }
+  load("ch.Rdata")
+  warn_msg[length(warn_msg) + 1] <- "* openZH down. Cached data used *" 
 }
 
 Ti <- subset(ch, 

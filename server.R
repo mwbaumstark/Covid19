@@ -153,16 +153,16 @@ shinyServer(function(input, output, session) {
       if (! is.null(input$show_c)) {    
         
         tabd <- aggregate(cbind(Confirmed, Deaths, Recovered, Active, format(Date)) ~
-                    Country_Region, tss,  FUN=tail,1)
+                            Country_Region, tss,  FUN=tail,1)
         names(tabd)[6] <- "Date"
-
-          output$table1 <- renderTable({tabd},
-          striped = FALSE,
-          bordered = TRUE,
-          digits = 0,
-          caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
-          caption.placement = getOption("xtable.caption.placement", "top"),
-          caption.width = getOption("xtable.caption.width", NULL)
+        
+        output$table1 <- renderTable({tabd},
+                                     striped = FALSE,
+                                     bordered = TRUE,
+                                     digits = 0,
+                                     caption = "<b> <span style='color:#000000'> Absolut number of cases </b>",
+                                     caption.placement = getOption("xtable.caption.placement", "top"),
+                                     caption.width = getOption("xtable.caption.width", NULL)
         )
       } else {
         output$table1 <- renderTable({})
@@ -296,7 +296,7 @@ shinyServer(function(input, output, session) {
         
         dst$DeathsRatio[dst$Date == dateDelay] <- NA
         dst$detRate <- input$ifr / dst$DeathsRatio
-
+        
         dst$Country_Region <- as.character(dst$Country_Region)
         
         for (i in unique(dst$Country_Region)) {
@@ -307,7 +307,7 @@ shinyServer(function(input, output, session) {
         dst$Estimated <- dst$Confirmed / dst$detRate
         dst$SharePopulInfected <- dst$Estimated / (inh[dst$Country_Region] * 1000000) * 100 
         dst$detRate <- dst$detRate * 100 # %
-
+        
         dst$Date <- format(dst$Date, "%d.%m.%Y")
         dst$Estimated <- format(dst$Estimated, digits = 0, scientific = FALSE)
         dst$Confirmed <- format(dst$Confirmed, digits = 0, scientific = FALSE)
@@ -381,7 +381,11 @@ shinyServer(function(input, output, session) {
         rkigg$CFR <- (rkigg$y / rkigg$Delta_Confirmed) * 100
         rkigg$CFR[rkigg$Sex == "U"] <- NA
         
-        csum <- sum(rkigg$Delta_Confirmed)
+        csum <- array()
+        csum["Positiv Getestete"] <- sum(rkigg$Delta_Confirmed)
+        csum["Todesfälle"] <- sum(rkigg$Delta_Deaths)
+        csum["Genesene"] <- sum(rkigg$Delta_Recovered)
+        csum["Aktive Fälle"] <- sum(rkigg$Delta_Active)
         
         #      if (input$normalize == TRUE) {
         rkigg$yn <- rkigg$y / rkigg$Population
@@ -391,18 +395,32 @@ shinyServer(function(input, output, session) {
         prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
           geom_bar(position="dodge", stat = "identity" ) +
           ylab("") +
-          ggtitle(paste("Altersverteilung ", cname, " (N=", csum, ", ", 
-                        rki_Datenstand, ")", sep = ""))
+          ggtitle(paste("Altersverteilung ", cname, " (N=", csum[cname], ", ", 
+                        rki_Datenstand, ")", sep = "")) +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
         
         prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = yn, fill = Sex, color = Sex)) +
           geom_bar(position="dodge", stat = "identity" ) +
           ylab("") +
-          ggtitle(paste("Altersverteilung / Mio. Einwohner ", sep = ""))
-        
-        prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
-          geom_bar(position="dodge", stat = "identity" ) +
-          ylab("") +
-          ggtitle(paste(cname, " / Positiv Getestete [%]", sep = ""))
+          ggtitle(paste("Altersverteilung / Mio. Einwohner ", sep = ""))+
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        if (cname != "Positiv Getestete") {
+          prki3 <- ggplot(rkigg, aes(x = Altersgruppe, y = CFR, fill = Sex, color = Sex)) +
+            geom_bar(position="dodge", stat = "identity" ) +
+            ylab("") +
+            ggtitle(paste(cname, " / Positiv Getestete [%]", sep = ""))+
+            theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        } else {
+          prki3 <- ggplot() + annotate(geom="text", x=1, y=1, label="intentionally blank",
+                                       color="black") + 
+            theme_minimal()  +
+            theme(panel.grid.major=element_blank(),
+                  panel.grid.minor=element_blank(),
+                  axis.title=element_blank(),
+                  axis.text=element_blank(),
+                  axis.ticks=element_blank()
+            )
+        }
       } else {
         prki1 <- ggplot + theme_void()
         prki2 <- ggplot + theme_void()
@@ -508,7 +526,7 @@ shinyServer(function(input, output, session) {
         tagList("Situation weltweit, mit Angaben zu Test-Raten:", 
                 a("worldometer", 
                   href="https://www.worldometers.info/coronavirus/"))
-        })
+      })
       output$link7 <- renderUI({
         tagList("Ticino:", 
                 a("Situation im Tessin", 

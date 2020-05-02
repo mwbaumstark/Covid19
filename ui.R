@@ -131,7 +131,7 @@ dashboardPage(
                              1.5.
                              Für Johns Hopkins Daten kann Geschlecht und Alter berücksichtigt werden, da nicht bekannt.
                              Ziel ist eine Abschätzung der Größenordnung, durch
-                             verändern der 'Assumed true infection fatality rate'."),
+                             Verändern der 'Assumed true infection fatality rate'."),
                        br(),
                        print("'Deaths per Cases(N days ago)' ist in [Bommer & Vollmer (2020)] erklärt.
                              Das Delay ist 14 für Johns Hopkins Daten. Mit 'To Date: 31.03.2020' kann man die 'Table 1' des

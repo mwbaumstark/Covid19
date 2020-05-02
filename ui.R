@@ -115,7 +115,7 @@ dashboardPage(
                        #             min = 0, max = 30, value = 14 ),
                        sliderInput("ifr",
                                    "Assumed true infection fatality rate",
-                                   min = 0.2, max = 1.7, value = 0.5, step = 0.01)
+                                   min = 0.2, max = 2.0, value = 1.5, step = 0.01)
                 ),
                 column(width = 6,
                        tableOutput('table2'),
@@ -125,9 +125,8 @@ dashboardPage(
                              Anteil der schon infizierten Bevölkerung schätzen, wenn man die 'wahre'
                              'infection fatality rate' kennt. Das Paper gibt Werte für verschiedene Länder
                              an. z.B.: Deutschland: 1.3, Schweiz: 1.13.  [Salje et al. (2020)] geben in 'Table S2' Werte für die
-                             französische Bevölkerung an, die realistischer sein dürften:
-                             0.5 (0.3-0.9), über Geschlecht und Alter gemittelt. Geschlecht und Alter kann hier
-                             nicht berücksichtigt werden, da es in den Johns Hopkins Daten nicht enthalten ist.
+                             französische Bevölkerung an. Daraus ergibt sich für Deutschland ein Mittelwert von 1.5.  
+                             Für Johns Hopkins Daten kann Geschlecht und Alter berücksichtigt werden, da nicht bekannt.
                              Ziel ist ohnehin nur eine Abschätzung der Größenordnung."),
                        br(),
                        print("Spielen kann man mit 'Assumed true infection fatality rate'."),

@@ -170,7 +170,7 @@ if (exists("rki_full")) {
   warn_msg[length(warn_msg) + 1] <- paste("* RKI down. Cached: ", head(rki_full$Datenstand,1)) 
 }
 
-rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
+# rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
 rki_full$Meldedatum <- ymd(substr(rki_full$Meldedatum, 1, 10)) # convert to date
 rki_full$Refdatum <- ymd(substr(rki_full$Refdatum, 1, 10)) # convert to date
 
@@ -306,8 +306,12 @@ all <- bind_rows(tm, rkia, rkig, rki_lk, Tis)
 
 #### population data
 
-tmc <- as.data.frame(unique(bind_rows(tm, Tis)))
+tmc <- as.data.frame(unique(tm$Country_Region))
 names(tmc)[1] <- "Country_Region"
+Tisc <- as.data.frame(unique(Tis$Country_Region))
+names(Tisc)[1] <- "Country_Region" 
+
+tmc <- bind_rows(tmc, Tisc)
 
 ### load population data
 load("pop_data.Rdata")

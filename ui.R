@@ -135,7 +135,7 @@ dashboardPage(
                        print("'Deaths per Cases(N days ago)' ist in [Bommer & Vollmer (2020)] erklärt.
                              Das Delay ist 14 für Johns Hopkins Daten. Mit 'To Date: 31.03.2020' kann man die 'Table 1' des
                              genannten Papers reproduzieren. Für RKI Daten benötigt man kein Delay (N=0), 
-                             da alle Fälle jeweils das Erkrankungsdatum haben.")
+                             da alle Fälle jeweils auf das Erkrankungsdatum bezogen sind.")
                 )
                 
               )
@@ -211,7 +211,14 @@ dashboardPage(
                              Datensatz enthalten sind, alle Bundesländer aus dem RKI Datensatz und
                              Deutschland aus dem RKI Datensatz 'Germany (RKI)'. Als kleinere Einheiten:
                              'Tessin', 'LK Breisgau-Hochschwarzwald' und 'SK Freiburg i.Breisgau'.
-                             Die 'Recovered' Zahlen werden wie bei [D. Kriesel] beschrieben korrigiert.")
+                             Die 'Recovered' Zahlen werden für Johns Hopkins Daten wie bei [D. Kriesel] 
+                             beschrieben korrigiert."),
+                       br(),
+                       print("Das Programm benutzt für RKI Daten das Referenzdatum. Dabei bezieht 
+                             das RKI alle Fälle (Bestätigte Fälle, Todesfälle und Genesene) auf das
+                             Erkrankungsdatum, ersatzweise das Meldedatum. Um die aktiven Fällen darstellen zu können, benötigt 
+                             man aber das Datum der Erholung. Dieses wird geschätzt in dem die Genesenen um 18 Tage 
+                             verschoben werden.")
                 )
               )
       )

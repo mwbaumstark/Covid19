@@ -377,6 +377,7 @@ shinyServer(function(input, output, session) {
           rkigg$Country_Region <- input$rki_show_c
         } 
         
+        rkigg <- subset(rkigg, (Altersgruppe != "unbekannt") & (Sex != "U")) # Like RKI Dashboard
         
         rkigg <- merge(rkigg, xxa_ge, 
                        by = c("Country_Region", "Sex", "Altersgruppe"), 
@@ -411,11 +412,8 @@ shinyServer(function(input, output, session) {
         csum["Genesene"] <- sum(rkigg$Delta_Recovered)
         csum["Aktive Fälle"] <- sum(rkigg$Delta_Active)
         
-        #      if (input$normalize == TRUE) {
         rkigg$yn <- rkigg$y / rkigg$Population
-        #        rkigg$Delta_Confirmed <- rkigg$Delta_Confirmed  / rkigg$Population
-        #      }
-        
+
         prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
           geom_bar(position="dodge", stat = "identity" ) +
           ylab("") +

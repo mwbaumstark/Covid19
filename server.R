@@ -257,50 +257,80 @@ shinyServer(function(input, output, session) {
       hide("cases")
       show("startd")
       show("stopd")
-
-      delay <- input$delay      
+      
       if (dim(tss)[1] > 0) {
+        dateMax <- min(aggregate(Date ~ Country_Region, data = tss, max)$Date) # dateMax available for all Countries
         
-        dateMax <- min(aggregate(Date ~ Country_Region, data = tss, max)$Date)
-        tss <- subset(tss, Date <= dateMax) # same max Date for all Countries
+        tss <- subset(tss, Date <= dateMax) # same dateMax for all Countries
+        l1 <- FALSE
+        l2 <- FALSE
+        if (length(intersect(input$show_c, rki_countries)) > 0) {
+          tss1 <- subset(tss, Country_Region %in% rki_countries)
+          tss1 <- tss1[order(tss1$Country_Region, tss1$Date),]
+          delay <- 0
+          tss1$DeathsRatio <- (tss1$Deaths / tss1$Confirmed) * 100
+          dst1 <- subset(tss1, Date == dateMax, 
+                         select = c(Date, Country_Region, Deaths, Confirmed, DeathsRatio))
+          dst1$detRate <- input$ifr / dst1$DeathsRatio
+          l1 <- TRUE
+          print("L1")
+        }
+        if (length(intersect(input$show_c, jh_countries)) > 0) {
+          tss2 <- subset(tss, Country_Region %in% jh_countries)
+          tss2 <- tss2[order(tss2$Country_Region, tss2$Date),]
+          delay <- 14 # input$delay      
+          tss2$DeathsRatio <- NA 
+          tss2$DeathsRatio[(delay + 1):nrow(tss2)] <-
+            (tss2$Deaths[(delay + 1):nrow(tss2)] /
+               tss2$Confirmed[1:(nrow(tss2) - delay)]) * 100
+          tss2$cmatch <- NA
+          tss2$cmatch[(delay + 1):nrow(tss2)] <- tss2$Country_Region[(delay + 1):nrow(tss2)] ==
+            tss2$Country_Region[1:(nrow(tss2) - delay)]
+          tss2$DeathsRatio[! tss2$cmatch] <- NA
+          dateDelay <- dateMax - delay
+          dst2 <- subset(tss2, 
+                         Date %in% c(dateDelay, dateMax), 
+                         select = c(Date, Country_Region, Deaths, Confirmed, DeathsRatio))
+          
+          dst2$detRate[dst2$Date == dateDelay] <- input$ifr / dst2$DeathsRatio[dst2$Date == dateMax]
+          dst2$detRate[dst2$Date == dateMax] <- input$ifr / dst2$DeathsRatio[dst2$Date == dateMax]
+          l2 <- TRUE
+#          print(subset(tss2, select = c(Date, Deaths, Confirmed, DeathsRatio)))
+          print("L2")
+          
+        }
         
-        tss$DeathsRatio <- NA 
-        tss$DeathsRatio[(delay + 1):length(tss$Date)] <-
-          (tss$Deaths[(delay + 1):length(tss$Date)] /
-             tss$Confirmed[1:(length(tss$Date) - delay)]) * 100
-        
-        tss$cmatch <- NA
-        tss$cmatch[(delay + 1):length(tss$Date)] <- tss$Country_Region[(delay + 1):length(tss$Date)] ==
-          tss$Country_Region[1:(length(tss$Date) - delay)]
-        tss$DeathsRatio[! tss$cmatch] <- NA
-        
+        if (l1 & l2) {
+          tss <- bind_rows(tss1, tss2)
+          dst <- bind_rows(dst1, dst2)
+        } else if (l1 & (!l2)) {
+          tss <- tss1
+          dst <- dst1
+        } else if ((!l1) & l2) {
+          tss <- tss2
+          dst <- dst2
+        } else {
+            stop("should not occur!")
+          }
+
         p99 <- ggplot(tss, aes(x = Date, y = DeathsRatio, color = Country_Region)) +
           geom_point() +
           geom_smooth(method = "loess",
                       alpha = .15,
                       aes(fill = Country_Region)) +
-          ggtitle("Deaths / Confirmed Cases [%]") +
+          ggtitle("Deaths / Confirmed Cases (N days ago) [%]") +
           ylab("")
         
-        dateDelay <- dateMax - delay
-        
-        dst <- subset(tss, 
-                      Date %in% c(dateDelay, dateMax), 
-                      select = c(Date, Country_Region, Deaths, Confirmed, DeathsRatio))
-        
-        dst$DeathsRatio[dst$Date == dateDelay] <- NA
-        dst$detRate <- input$ifr / dst$DeathsRatio
-        
+
         dst$Country_Region <- as.character(dst$Country_Region)
         
-        for (i in unique(dst$Country_Region)) {
-          dst$detRate[dst$Country_Region == i] <- dst$detRate[(dst$Country_Region == i) &
-                                                                (! is.na(dst$detRate))]
-        }
         dst <- subset(dst, select = -DeathsRatio)
+        
         dst$Estimated <- dst$Confirmed / dst$detRate
         dst$SharePopulInfected <- dst$Estimated / (inh[dst$Country_Region] * 1000000) * 100 
         dst$detRate <- dst$detRate * 100 # %
+        
+        dst <- subset(dst, Date == dateMax)
         
         dst$Date <- format(dst$Date, "%d.%m.%Y")
         dst$Estimated <- format(dst$Estimated, digits = 0, scientific = FALSE)
@@ -389,8 +419,7 @@ shinyServer(function(input, output, session) {
         prki1 <- ggplot(rkigg, aes(x = Altersgruppe, y = y, fill = Sex, color = Sex)) +
           geom_bar(position="dodge", stat = "identity" ) +
           ylab("") +
-          ggtitle(paste("Altersverteilung ", cname, " (N=", csum[cname], ", ", 
-                        rki_Datenstand, ")", sep = "")) +
+          ggtitle(paste0("Altersverteilung ", cname, " (N=", csum[cname], ")")) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1))
         
         prki2 <- ggplot(rkigg, aes(x = Altersgruppe, y = yn, fill = Sex, color = Sex)) +
@@ -419,7 +448,7 @@ shinyServer(function(input, output, session) {
         
         dft3 <- subset(rkigg, select = c(Altersgruppe, Sex, y, yn, CFR, Population),
                        (Altersgruppe != "unbekannt") & (Sex == "M"))
-
+        
         dft3$Population <- dft3$Population * 1000000
         
         names(dft3)[names(dft3) == "y"] <- "Faelle"
@@ -427,13 +456,13 @@ shinyServer(function(input, output, session) {
         names(dft3)[names(dft3) == "CFR"] <- "F./Pos."
         names(dft3)[names(dft3) == "Altersgruppe"] <- "Alter"
         names(dft3)[names(dft3) == "Sex"] <- "Geschl."
-
+        
         output$table3 <- renderTable({dft3},
                                      striped = TRUE,
                                      bordered = TRUE,
                                      digits = 0,
                                      align = "r",
-                                   #  caption = "<b> <span style='color:#000000'> ### </b>",
+                                     #  caption = "<b> <span style='color:#000000'> ### </b>",
                                      caption.placement = getOption("xtable.caption.placement", "top"),
                                      caption.width = getOption("xtable.caption.width", NULL)
         )
@@ -503,9 +532,10 @@ shinyServer(function(input, output, session) {
           
           p98 <- ggplot(rt_wt_df, aes(x=Date, y=R_hat, color=Method, fill=Method)) +  
             geom_ribbon(aes(x=Date,  ymin=lower, ymax=upper, color=NULL), alpha=0.15) +
-            geom_line() +
+            #           geom_line() +
             geom_line(data=rt_rki_df) +
             geom_smooth(data=rt_rki_df, method = "loess", alpha=0.15, se = FALSE) +
+            geom_smooth(data=rt_wt_df, method = "loess", alpha=0.15, se = FALSE) +
             coord_cartesian(ylim=c(0, 2)) +
             ylab(expression(R[e](t))) +
             theme(legend.position="bottom")

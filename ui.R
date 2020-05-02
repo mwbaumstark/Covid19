@@ -8,26 +8,31 @@ dashboardPage(
     useShinyjs(),
     sidebarMenu(
       id = "tabs",
-      menuItem("Show Cases", 
-               icon = icon("atlas"),
+      # icons see:
+      menuItem("Show Cases",
+               icon = icon("chart-line"),
                tabName = "wwd1"
       ),
       radioButtons("cases", NULL, choices = ctype, selected = ctype[1]),
-      menuItem("Other Data", 
+      menuItem("Other Data",
                icon = icon("bar-chart"),
                tabName = "other",
                startExpanded = FALSE,
                
                menuSubItem("Eff. reproduction number", tabName = "wwd4"),
                menuSubItem("CRF, % Detected, % Infected", tabName = "wwd5"),
-               menuSubItem("RKI, Altersverteilung", tabName = "rki2"),
-               menuSubItem("Links, Data and Papers", tabName = "links")
+               menuSubItem("RKI, Altersverteilung", tabName = "rki2")
+      ),
+      menuItem("Links, Documentation",
+               icon = icon("info"),
+               tabName = "links"
       )
+      
     ),
     
-    selectizeInput("show_c", 
-                   "Select Countries/Region to show (see 'Other Data' 'Links...' for details):", 
-                   choices = countries, 
+    selectizeInput("show_c",
+                   "Select Countries/Region to show (see 'Other Data' 'Links...' for details):",
+                   choices = countries,
                    selected = c("Germany", "Switzerland"),
                    multiple = TRUE),
     
@@ -39,6 +44,7 @@ dashboardPage(
               language = "en", width = NULL),
     
     dateInput("stopd", "To Date:", value = max_date, min = min_date, max = max_date,
+              #    dateInput("stopd", "To Date:", value = "2020-03-31", min = min_date, max = max_date,
               format = "yyyy-mm-dd", startview = "month", weekstart = 0,
               language = "en", width = NULL),
     tags$hr(style="border-color: white;"),
@@ -56,7 +62,7 @@ dashboardPage(
     
     #    },
     
-    collapsed = FALSE  
+    collapsed = FALSE
   ),
   
   dashboardBody(
@@ -66,13 +72,13 @@ dashboardPage(
                 column(width = 4,
                        box(width = NULL, plotOutput('Plot1', click = "plot_click")),
                        radioButtons("yaxt", "y-axis:",
-                                    choices = c("linear", "logarithmic"), 
-                                    selected = "logarithmic", 
+                                    choices = c("linear", "logarithmic"),
+                                    selected = "logarithmic",
                                     inline = TRUE),
                        
                        radioButtons("yafit", "Fit:",
-                                    choices = c("exponential", "loess", "no fit"), 
-                                    selected = "loess", 
+                                    choices = c("exponential", "loess", "no fit"),
+                                    selected = "loess",
                                     inline = TRUE),
                        verbatimTextOutput("info1"),
                        actionButton("reset", "Reset"),
@@ -87,12 +93,12 @@ dashboardPage(
                 column(width = 4,
                        box(width = NULL, plotOutput('Plot2')),
                        radioButtons("show_2", "Show:",
-                                    choices = c("Doubling period", "Daily rate of increase"), 
-                                    selected = "Daily rate of increase", 
+                                    choices = c("Doubling period", "Daily rate of increase"),
+                                    selected = "Daily rate of increase",
                                     inline = TRUE),
                        radioButtons("rfit", "Fit:",
-                                    choices = c("constant", "loess", "no fit"), 
-                                    selected = "loess", 
+                                    choices = c("constant", "loess", "no fit"),
+                                    selected = "loess",
                                     inline = TRUE)
                 ),
                 column(width = 4,
@@ -103,36 +109,37 @@ dashboardPage(
       ),
       tabItem(tabName = "wwd5",
               fluidRow(
-                box(width = 5, plotOutput('Plot99')),
+                column(width = 5,
+                       box(width = NULL, plotOutput('Plot99')),
+                       # sliderInput("delay", "Deaths per Cases(N days ago)",
+                       #             min = 0, max = 30, value = 14 ),
+                       sliderInput("ifr",
+                                   "Assumed true infection fatality rate",
+                                   min = 0.2, max = 1.7, value = 0.5, step = 0.01)
+                ),
                 column(width = 6,
                        tableOutput('table2'),
                        
                        tags$hr(style="border-color: black;"),
-                       print("Nach [Bommer & Vollmer (2020)] kann man die Detektionrate und den 
+                       print("Nach [Bommer & Vollmer (2020)] kann man die Detektionrate und den
                              Anteil der schon infizierten Bevölkerung schätzen, wenn man die 'wahre'
                              'infection fatality rate' kennt. Das Paper gibt Werte für verschiedene Länder
-                             an. z.B.: Deutschland: 1.3, Schweiz: 1.13.  [Salje et al. (2020)] geben in 'Table S2' Werte für die 
-                             französische Bevölkerung an, die realistischer sein dürften: 
-                             0.5 (0.3-0.9), über Geschlecht und Alter gemittelt. Geschlecht und Alter kann hier  
-                             nicht berücksichtigt werden, da es in den Johns Hopkins Daten nicht enthalten ist. 
+                             an. z.B.: Deutschland: 1.3, Schweiz: 1.13.  [Salje et al. (2020)] geben in 'Table S2' Werte für die
+                             französische Bevölkerung an, die realistischer sein dürften:
+                             0.5 (0.3-0.9), über Geschlecht und Alter gemittelt. Geschlecht und Alter kann hier
+                             nicht berücksichtigt werden, da es in den Johns Hopkins Daten nicht enthalten ist.
                              Ziel ist ohnehin nur eine Abschätzung der Größenordnung."),
                        br(),
                        print("Spielen kann man mit 'Assumed true infection fatality rate'."),
                        br(),
-                       print("'Deaths per Cases(N days ago)' ist in [Bommer & Vollmer (2020)] erklärt 
-                             und bleibt am besten auf 14. Mit 'To Date: 31.03.2020' kann man die 'Table 1' des 
-                             genannten Papers reproduzieren.")              
+                       print("'Deaths per Cases(N days ago)' ist in [Bommer & Vollmer (2020)] erklärt.
+                             Das Delay ist 14 für Johns Hopkins Daten. Mit 'To Date: 31.03.2020' kann man die 'Table 1' des
+                             genannten Papers reproduzieren. Für RKI Daten benötigt man kein Delay (N=0), 
+                             da alle Fälle jeweils das Erkrankungsdatum haben.")
                 )
                 
-              ),
-              fluidRow(
-                column(width = 4,
-                       sliderInput("delay", "Deaths per Cases(N days ago)", min = 1, max = 30, value = 14 ),
-                       sliderInput("ifr", 
-                                   "Assumed true infection fatality rate", 
-                                   min = 0.2, max = 1.7, value = 0.5, step = 0.01)
-                )
               )
+              
       ),
       tabItem(tabName = "wwd4",
               fluidRow(
@@ -140,9 +147,9 @@ dashboardPage(
               ),
               fluidRow(
                 column(width = 4,
-                       selectizeInput("r_show_c", 
-                                      "Select one Country/Region to show (including Bundesländer and Germany (RKI):", 
-                                      choices = countries, 
+                       selectizeInput("r_show_c",
+                                      "Select one Country/Region to show (including Bundesländer and Germany (RKI):",
+                                      choices = countries,
                                       selected = c("Germany (RKI)"),
                                       multiple = FALSE),
                        
@@ -152,7 +159,7 @@ dashboardPage(
                                     Daten [Epidemiologisches Bulletin 17/2020], was zu wesentlich glatteren Verläufen führt.
                                     Die Glättung (dicke rote Linie) ergibt jedoch ähnliche Werte.
                                     Zum Vergleich wird die effektive Reproduktionszahl auch mit der
-                                    Methode von Wallinga and Teunis (2004) berechnet. Siehe:  
+                                    Methode von Wallinga and Teunis (2004) berechnet. Siehe:
                                     [Effective reproduction number estimation with R0]"
                        ),
                        br(),
@@ -162,23 +169,23 @@ dashboardPage(
       ),
       tabItem(tabName = "rki2",
               fluidRow(
-                box(width = 4, plotOutput('AvFaelle')),  
+                box(width = 4, plotOutput('AvFaelle')),
                 box(width = 4, plotOutput('AvTodesFaelle')),
-                box(width = 4, plotOutput('CFR')) 
+                box(width = 4, plotOutput('CFR'))
               ),
               fluidRow(
                 column(width = 4,
                        radioButtons("rki_cases", NULL, choices = ctype, selected = ctype[1]),
-                       selectizeInput("rki_show_c", 
-                                      "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries_noLk, 
+                       selectizeInput("rki_show_c",
+                                      "Select 'Germany (RKI)' or one 'Bundesland'", choices = rki_countries_noLk,
                                       selected = c("Germany (RKI)"),
                                       multiple = FALSE)
                 ),
                 column(width = 4, tableOutput('table3')),
                 column(width = 4, tableOutput('table4'))
-                       
+                
               )
-      ), 
+      ),
       tabItem(tabName = "links",
               fluidRow(
                 column(width = 4,
@@ -200,10 +207,10 @@ dashboardPage(
                        uiOutput("link13"),
                        
                        tags$hr(style="border-color: black;"),
-                       print("Verfügbare Länder/Regionen sind alle Länder die im Johns Hopkins 
-                             Datensatz enthalten sind, alle Bundesländer aus dem RKI Datensatz und 
-                             Deutschland aus dem RKI Datensatz 'Germany (RKI)'. Als kleinere Einheiten: 
-                             'Tessin', 'LK Breisgau-Hochschwarzwald' und 'SK Freiburg i.Breisgau'. 
+                       print("Verfügbare Länder/Regionen sind alle Länder die im Johns Hopkins
+                             Datensatz enthalten sind, alle Bundesländer aus dem RKI Datensatz und
+                             Deutschland aus dem RKI Datensatz 'Germany (RKI)'. Als kleinere Einheiten:
+                             'Tessin', 'LK Breisgau-Hochschwarzwald' und 'SK Freiburg i.Breisgau'.
                              Die 'Recovered' Zahlen werden wie bei [D. Kriesel] beschrieben korrigiert.")
                 )
               )

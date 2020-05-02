@@ -56,8 +56,6 @@ ctype <- c("Confirmed Cases" ,
 )
 
 warn_msg <- array(data = "")
-# warn_msg[length(warn_msg) + 1] <- "***RKI Data truncated***"
-# warn_msg[length(warn_msg) + 1] <- "***Layout of RKI Data changed***"
 
 # Johns Hopkins Master Repository #############################
 
@@ -109,12 +107,12 @@ tm <- merge(tmp, rm, by= c("Country_Region", "Date"), all = TRUE)
 # 
 # if (exists("tm_raw")) {
 #   save(tm_raw, file = "tm_raw.Rdata")
-#   warn_msg[length(warn_msg) + 1] <- "* J. Hopkins data ok *" 
+#   warn_msg[length(warn_msg) + 1] <- "* J. Hopkins data ok *"
 # } else {
-#   warn_msg[length(warn_msg) + 1] <- "* J. Hopkins down. Use cached data *" 
+#   warn_msg[length(warn_msg) + 1] <- "* J. Hopkins down. Use cached data *"
 #   load("tm_raw.Rdata")
 # }
-
+# 
 # tm <- aggregate(cbind(Confirmed, Deaths, Recovered) ~ Date + `Country/Region`, tm_raw, sum)
 # 
 # names(tm)[2] <- "Country_Region"
@@ -139,6 +137,7 @@ tm$Rate_Recovered <- (tm$Delta_Recovered / tm$Recovered) * 100
 tm$Rate_Active <- (tm$Delta_Active / tm$Active) * 100
 tm$Rate_Deaths <- (tm$Delta_Deaths / tm$Deaths) * 100
 
+warn_msg[length(warn_msg) + 1] <- paste("- J.Hopkins data from:", max(tm$Date) + 1) 
 
 #### RKI Data #### URL may change !!!
 rki_data <- "https://opendata.arcgis.com/datasets/dd4580c810204019a7b8eb3e0b329dd6_0.csv"
@@ -156,18 +155,19 @@ if (exists("rki_full")) {
   load("dim_rki_full.Rdata")
   if ((dim_rki[1] >= dim_rki_save[1]) & (dim_rki[2] == dim_rki_save[2])) {
     dim_rki_save <- dim(rki_full)
+    rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
     save(dim_rki_save, file = "dim_rki_full.Rdata")
     save(rki_full, file = "rki_full.Rdata")
-    warn_msg[length(warn_msg) + 1] <- "* RKI data ok *" 
+    warn_msg[length(warn_msg) + 1] <- paste("- RKI data from:", head(rki_full$Datenstand,1)) 
   } else {
     if (dim_rki[1] <= dim_rki_save[1]) warn_msg[length(warn_msg) + 1] <- "***RKI Data truncated***"
     if (dim_rki[2] != dim_rki_save[2]) warn_msg[length(warn_msg) + 1] <- "***Layout of RKI Data changed***"
-    warn_msg[length(warn_msg) + 1] <- "* Cached data used *" 
     load("rki_full.Rdata")
+    warn_msg[length(warn_msg) + 1] <- paste("* Cached data used: ", head(rki_full$Datenstand,1)) 
   } 
 } else {
   load("rki_full.Rdata")
-  warn_msg[length(warn_msg) + 1] <- "* RKI down. Cached data used *" 
+  warn_msg[length(warn_msg) + 1] <- paste("* RKI down. Cached: ", head(rki_full$Datenstand,1)) 
 }
 
 rki_full$Datenstand <- dmy(substr(rki_full$Datenstand, 1, 10))
@@ -176,17 +176,15 @@ rki_full$Refdatum <- ymd(substr(rki_full$Refdatum, 1, 10)) # convert to date
 
 names(rki_full)[names(rki_full) == "AnzahlFall"] <- "Delta_Confirmed" 
 names(rki_full)[names(rki_full) == "AnzahlTodesfall"] <- "Delta_Deaths" 
-# names(rki_full)[names(rki_full) == "Refdatum"] <- "Date"  # should this be used??
-# names(rki_full)[names(rki_full) == "Meldedatum"] <- "Date"  
 names(rki_full)[names(rki_full) == "Bundesland"] <- "Country_Region"
 names(rki_full)[names(rki_full) == "AnzahlGenesen"] <- "Delta_Recovered"
 names(rki_full)[names(rki_full) == "Geschlecht"] <- "Sex" 
 rki_full$Sex[rki_full$Sex == "W"] <- "F"
 rki_full$Sex[rki_full$Sex == "unbekannt"] <- "U"
 
-rki_full$ddate <- rki_full$Meldedatum - rki_full$Refdatum
-rki_full$Date <- rki_full$Meldedatum
-# rki_full$Date <- rki_full$Refdatum
+# rki_full$ddate <- rki_full$Meldedatum - rki_full$Refdatum
+# rki_full$Date <- rki_full$Meldedatum
+rki_full$Date <- rki_full$Refdatum
 
 rki_full$Delta_Active <- rki_full$Delta_Confirmed - rki_full$Delta_Deaths - rki_full$Delta_Recovered # correct?
 
@@ -194,7 +192,7 @@ rki_full$Delta_Active <- rki_full$Delta_Confirmed - rki_full$Delta_Deaths - rki_
 #   rki_full$Altersgruppe <- rki_full$Altersgruppe2
 # }
 
-rki_Datenstand <- max(rki_full$Datenstand)
+# rki_Datenstand <- max(rki_full$Datenstand)
 
 #### RKI Bundesländer
 rkia <- aggregate(cbind(Delta_Confirmed, Delta_Deaths, Delta_Recovered) ~ Date + Country_Region, 
@@ -264,10 +262,10 @@ try(
 
 if (exists("ch")) {
   save(ch, file = "ch.Rdata")
-  warn_msg[length(warn_msg) + 1] <- "* openZH data ok *" 
+  warn_msg[length(warn_msg) + 1] <- paste("- openZH data from:", max(ch$date)) 
 } else {
   load("ch.Rdata")
-  warn_msg[length(warn_msg) + 1] <- "* openZH down. Cached data used *" 
+  warn_msg[length(warn_msg) + 1] <- paste("* openZH down. Cached: ", max(ch$date)) 
 }
 
 Ti <- subset(ch, 
@@ -306,22 +304,9 @@ Tis$Rate_Deaths <- (Tis$Delta_Deaths / Tis$Deaths) * 100
 #### Total data set 
 all <- bind_rows(tm, rkia, rkig, rki_lk, Tis) 
 
-all <- all[order(all$Country_Region, all$Date),]
+#### population data
 
-# Recovered Korrektur nach D. Kriesel
-all$Rec_corr <- lag(all$Confirmed, 18) - all$Death - all$Recovered
-all$Rec_corr[all$Country_Region != lag(all$Country_Region, 18, default = 0)] <- 0
-all$Rec_corr[all$Rec_corr < 0] <- 0
-all$Recovered <- all$Recovered + all$Rec_corr
-
-# summary(all$Rec_corr)
-
-all <- subset(all, select = -Rec_corr) 
-
-#### countries with N of confirmed cases > c_limit
-c_limit <- 0
-tmc <- as.data.frame(unique(subset(bind_rows(tm, Tis), 
-                                   Confirmed >= c_limit)$Country_Region) )
+tmc <- as.data.frame(unique(bind_rows(tm, Tis)))
 names(tmc)[1] <- "Country_Region"
 
 ### load population data
@@ -342,6 +327,41 @@ closeAllConnections()
 
 lw <- length(warn_msg)
 
+#### Data adjustments
+
+all <- all[order(all$Country_Region, all$Date),]
+
+# Recovered Korrektur nach D. Kriesel für Johns Hopkins und CH Daten
+all$Rec_corr <- lag(all$Confirmed, 18) - all$Death - all$Recovered
+all$Rec_corr[all$Country_Region != lag(all$Country_Region, 18, default = 0)] <- 0
+all$Rec_corr[all$Rec_corr < 0] <- 0
+all$Recovered[! (all$Country_Region %in% rki_countries)] <-
+  all$Recovered[! (all$Country_Region %in% rki_countries)] +
+  all$Rec_corr[! (all$Country_Region %in% rki_countries)]
+# summary(all$Rec_corr)
+all <- subset(all, select = -Rec_corr)
+
+# # Johns Hopkins like Recovered für RKI:
+rki_delay <- 18
+# all$RecCalc <- lag(all$Confirmed, rki_delay) - all$Death
+all$RecCalc <- lag(all$Recovered, rki_delay)
+all$RecCalc[all$Country_Region != lag(all$Country_Region, rki_delay, default = 0)] <- 0
+all$RecCalc[all$RecCalc < 0] <- 0
+all$Recovered[all$Country_Region %in% rki_countries] <-
+  all$RecCalc[all$Country_Region %in% rki_countries]
+
+all$Active <- all$Confirmed - all$Deaths - all$Recovered
+
+all$cmatch <- NA  # move to function!
+all$cmatch[1] <- FALSE
+all$cmatch[(2):length(all$Date)] <- all$Country_Region[(2):length(all$Date)] ==
+  all$Country_Region[1:(length(all$Date) - 1)]
+
+all$Delta_Recovered <- cum2delta(all, "Recovered")
+all$Delta_Active <- cum2delta(all, "Active")
+all$Rate_Recovered <- (all$Delta_Active / all$Recovered) * 100
+all$Rate_Active <- (all$Delta_Active / all$Active) * 100
+
 #### Infos
 # https://stats.idre.ucla.edu/r/faq/how-can-i-explore-different-smooths-in-ggplot2/
 
@@ -359,4 +379,21 @@ lw <- length(warn_msg)
 
 #R0
 # https://bmcmedinformdecismak.biomedcentral.com/articles/10.1186/1472-6947-12-147
+
+# # check Recovered calculations
+# dfplt1 <- subset(all, Country_Region == "Germany")
+# dfplt2 <- subset(all, Country_Region == "Germany (RKI)")
+# 
+# ggplot(data = dfplt1, aes(x=Date, y=Confirmed, color = "Confirmed")) +  
+#   geom_line() +
+#   geom_line(aes(y=Recovered, color = "Recovered")) +
+#   geom_point(data = dfplt2) +
+#   geom_point(data = dfplt2, aes(y=Recovered, color = "Recovered")) +
+#   geom_line(aes(y=Active, color = "Active")) +
+#   geom_point(data = dfplt2, aes(y=Active, color = "Active")) +
+#   geom_line(aes(y=Deaths, color = "Deaths")) +
+#   geom_point(data = dfplt2, aes(y=Deaths, color = "Deaths")) +
+#   xlim(date("2020-03-01"), date("2020-05-01"))
+
+
 

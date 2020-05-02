@@ -115,7 +115,7 @@ dashboardPage(
                        #             min = 0, max = 30, value = 14 ),
                        sliderInput("ifr",
                                    "Assumed true infection fatality rate",
-                                   min = 0.2, max = 2.0, value = 1.5, step = 0.01)
+                                   min = 0.2, max = 2.0, value = 1.3, step = 0.01)
                 ),
                 column(width = 6,
                        tableOutput('table2'),
@@ -125,11 +125,13 @@ dashboardPage(
                              Anteil der schon infizierten Bevölkerung schätzen, wenn man die 'wahre'
                              'infection fatality rate' kennt. Das Paper gibt Werte für verschiedene Länder
                              an. z.B.: Deutschland: 1.3, Schweiz: 1.13.  [Salje et al. (2020)] geben in 'Table S2' Werte für die
-                             französische Bevölkerung an. Daraus ergibt sich für Deutschland ein Mittelwert von 1.5.  
+                             französische Bevölkerung an. Daraus ergibt sich für Deutschland nach gleicher Methodik 
+                             'population shares' 
+                             ein Mittelwert von 1.05. Berücksichtigt man die Altersverteilung bei den Infizierten ist der Wert
+                             1.5.
                              Für Johns Hopkins Daten kann Geschlecht und Alter berücksichtigt werden, da nicht bekannt.
-                             Ziel ist ohnehin nur eine Abschätzung der Größenordnung."),
-                       br(),
-                       print("Spielen kann man mit 'Assumed true infection fatality rate'."),
+                             Ziel ist eine Abschätzung der Größenordnung, durch
+                             verändern der 'Assumed true infection fatality rate'."),
                        br(),
                        print("'Deaths per Cases(N days ago)' ist in [Bommer & Vollmer (2020)] erklärt.
                              Das Delay ist 14 für Johns Hopkins Daten. Mit 'To Date: 31.03.2020' kann man die 'Table 1' des
